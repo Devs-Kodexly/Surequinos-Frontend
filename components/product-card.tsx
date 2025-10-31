@@ -36,9 +36,8 @@ export function ProductCard({
   const handleAddToCart = () => {
     addItem({
       id,
-      title,
+      name: title,
       price: priceNumber,
-      quantity: 1,
       image: image || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`,
       color: "Negro",
     })

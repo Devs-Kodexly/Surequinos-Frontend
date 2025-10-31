@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    turbo: {
-      root: __dirname
-    }
-  }
+  // Remove the invalid turbo config for now
 }
 
 module.exports = nextConfig
