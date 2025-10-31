@@ -1,65 +1,193 @@
-import Image from "next/image";
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import Image from "next/image"
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background">
+      <Header />
+
+      {/* Hero Section */}
+      <section className="relative min-h-[600px] md:min-h-[700px] flex items-center bg-[#0F0B0A] py-20">
+        <div className="container mx-auto px-4 md:px-8 lg:px-12">
+          <div className="max-w-xl">
+            <h1 className="text-title text-[#E5AB4A] mb-6 text-left">
+              El Arte
+              <br />
+              del Ensillar
+            </h1>
+            <p className="text-body text-muted-foreground mb-8 text-left">
+              Un taller donde se honra la talabartería artesanal, se respira respeto por la tradición y se cuida cada
+              detalle como si fuera único.
+            </p>
+            <div className="flex gap-4 flex-col sm:flex-row">
+              <Link href="/tienda">
+                <Button className="bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white px-8 w-full sm:w-auto">
+                  VER TIENDA
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                className="border-[#E5AB4A] text-[#E5AB4A] hover:bg-[#E5AB4A] hover:text-[#0F0B0A] px-8 bg-transparent w-full sm:w-auto"
+              >
+                HECHO A MEDIDA
+              </Button>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* About Section */}
+      <section className="py-20 bg-[#0F0B0A]">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-title mb-6">
+                <span className="text-foreground">Somos un taller con </span>
+                <span className="text-[#E5AB4A]">más de 12 años en el mercado</span>
+              </h2>
+              <p className="text-body text-muted-foreground">
+                Con materiales y cueros de primera calidad, nos hemos posicionado en el territorio colombiano por
+                nuestras sillas y tereques de montar de lujo. Cada pieza es creada con respeto por la tradición y
+                cuidando cada detalle como si fuera único.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="aspect-square bg-muted rounded-lg overflow-hidden">
+                <Image
+                  src="/talabarteria2.jpeg"
+                  alt="Taller"
+                  width={300}
+                  height={300}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="aspect-square bg-muted rounded-lg overflow-hidden">
+                <Image
+                  src="/artesano-trabajando-cuero.jpg"
+                  alt="Artesano"
+                  width={300}
+                  height={300}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* Gallery Section */}
+      <section className="py-20 bg-[#1A1311]">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-title text-foreground mb-4">
+              NUESTRA
+              <br />
+              GALERÍA
+            </h2>
+            <p className="text-body text-muted-foreground">
+              Cada pieza cuenta una historia de precisión, pasión y perfección técnica.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {[
+              {
+                src: "/silla-de-montar-artesanal-.jpg",
+                title: "SILLA ARTESANAL",
+                description: "Silla de montar tradicional con acabados de lujo"
+              },
+              {
+                src: "/silla-de-paso-negra.jpg",
+                title: "SILLA DE PASO",
+                description: "Elegante silla de paso en cuero negro premium"
+              },
+              {
+                src: "/silla-de-montar-artesanal-colombiana-.jpg",
+                title: "DISEÑO COLOMBIANO",
+                description: "Tradición colombiana en cada detalle artesanal"
+              },
+              {
+                src: "/apero.jpg",
+                title: "APERO TRADICIONAL",
+                description: "Apero completo con herrajes de primera calidad"
+              },
+              {
+                src: "/Talabarteria-montura.webp",
+                title: "TERECO DE LUJO",
+                description: "Tereco premium con materiales selectos"
+              },
+              {
+                src: "/silla-de-montar-artesanal-.jpg",
+                title: "ARTESANÍA PURA",
+                description: "Cada pieza única trabajada a mano"
+              }
+            ].map((item, i) => (
+              <div key={i} className="aspect-square bg-muted rounded-lg overflow-hidden relative group">
+                <Image
+                  src={item.src}
+                  alt={item.title}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                  <div>
+                    <h3 className="text-foreground font-semibold mb-1">{item.title}</h3>
+                    <p className="text-muted-foreground text-sm">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-center">
+            <Link href="/galeria" className="text-[#E5AB4A] hover:underline inline-flex items-center gap-2">
+              VER GALERÍA COMPLETA →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Values Section */}
+      <section className="py-20 bg-[#0F0B0A]">
+        <div className="container mx-auto px-4">
+          <h2 className="text-title text-center mb-12">
+            <span className="text-foreground">Calidad </span>
+            <span className="text-[#E5AB4A]">& Valores</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                title: "Artesanal",
+                description: "Cada pieza es trabajada a mano con técnicas tradicionales que exaltan cada detalle.",
+              },
+              {
+                title: "Calidad Premium",
+                description:
+                  "Utilizamos únicamente cueros y materiales de primera calidad seleccionados cuidadosamente.",
+              },
+              {
+                title: "Innovación",
+                description: "Exploramos nuevas formas, texturas y combinaciones que reimaginan lo tradicional.",
+              },
+              {
+                title: "Tradición",
+                description: "Preservamos y honramos las técnicas de la talabartería colombiana.",
+              },
+            ].map((value, i) => (
+              <div key={i} className="bg-[#1A1311] p-6 rounded-lg border border-border text-center">
+                <div className="w-16 h-16 rounded-full bg-[#AA3E11] mx-auto mb-4" />
+                <h3 className="text-foreground font-semibold mb-2">{value.title}</h3>
+                <p className="text-body text-muted-foreground text-sm">{value.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <Footer />
     </div>
-  );
+  )
 }
