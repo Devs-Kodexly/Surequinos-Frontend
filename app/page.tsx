@@ -91,7 +91,8 @@ export default function HomePage() {
               Cada pieza cuenta una historia de precisión, pasión y perfección técnica.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Desktop Grid */}
+          <div className="hidden md:grid md:grid-cols-3 gap-6 mb-8">
             {[
               {
                 src: "/silla-de-montar-artesanal-.jpg",
@@ -141,6 +142,64 @@ export default function HomePage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Mobile Horizontal Scroll */}
+          <div className="md:hidden mb-8">
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
+              {[
+                {
+                  src: "/silla-de-montar-artesanal-.jpg",
+                  title: "SILLA ARTESANAL",
+                  description: "Silla de montar tradicional con acabados de lujo"
+                },
+                {
+                  src: "/silla-de-paso-negra.jpg",
+                  title: "SILLA DE PASO",
+                  description: "Elegante silla de paso en cuero negro premium"
+                },
+                {
+                  src: "/silla-de-montar-artesanal-colombiana-.jpg",
+                  title: "DISEÑO COLOMBIANO",
+                  description: "Tradición colombiana en cada detalle artesanal"
+                },
+                {
+                  src: "/apero.jpg",
+                  title: "APERO TRADICIONAL",
+                  description: "Apero completo con herrajes de primera calidad"
+                },
+                {
+                  src: "/Talabarteria-montura.webp",
+                  title: "TERECO DE LUJO",
+                  description: "Tereco premium con materiales selectos"
+                },
+                {
+                  src: "/silla-de-montar-artesanal-.jpg",
+                  title: "ARTESANÍA PURA",
+                  description: "Cada pieza única trabajada a mano"
+                }
+              ].map((item, i) => (
+                <div key={i} className="flex-none w-72 aspect-square bg-muted rounded-lg overflow-hidden relative snap-center">
+                  <Image
+                    src={item.src}
+                    alt={item.title}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 flex items-end p-4">
+                    <div>
+                      <h3 className="text-white font-semibold mb-1 text-sm">{item.title}</h3>
+                      <p className="text-white/80 text-xs">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-muted-foreground text-sm mt-2">
+              Desliza para ver más →
+            </p>
           </div>
           <div className="text-center">
             <Link href="/galeria" className="text-[#E5AB4A] hover:underline inline-flex items-center gap-2">

@@ -151,6 +151,16 @@
     letter-spacing: 0;
   }
 
+  /* Scrollbar oculta para galería móvil */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   @media (max-width: 768px) {
     .text-title {
       font-size: 32px;

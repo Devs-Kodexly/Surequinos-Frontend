@@ -15,8 +15,8 @@ export function AdminMobileNav() {
   ]
 
   return (
-    <nav className="lg:hidden bg-[#1A1311] border-b border-[#2a2a2a] overflow-x-auto">
-      <div className="flex gap-2 p-4">
+    <nav className="lg:hidden bg-[#1A1311] border-b border-[#2a2a2a]">
+      <div className="grid grid-cols-4 gap-1 p-2 sm:p-3">
         {links.map((link) => {
           const Icon = link.icon
           const isActive = pathname === link.href
@@ -24,12 +24,12 @@ export function AdminMobileNav() {
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors text-xs ${
                 isActive ? "bg-[#AA3E11] text-white" : "text-gray-300 hover:bg-[#2a2a2a] hover:text-[#E5AB4A]"
               }`}
             >
-              <Icon className="w-4 h-4" />
-              <span className="text-sm font-medium">{link.label}</span>
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className="font-medium text-center leading-tight">{link.label}</span>
             </Link>
           )
         })}

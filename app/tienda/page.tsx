@@ -51,7 +51,7 @@ export default function TiendaPage() {
       price: "$ 850.000",
       priceNumber: 850000,
       stock: "Últimas 3",
-      hasStyleSelector: false,
+      hasStyleSelector: true,
       image: "/apero.jpg"
     },
     {
@@ -85,7 +85,7 @@ export default function TiendaPage() {
           <div className="text-center mb-8">
             <h1 className="text-title text-[#AA3E11] mb-4">Nuestra Tienda</h1>
             <p className="text-body text-black max-w-2xl mx-auto">
-              Explora nuestra tienda y encuentra piezas únicas, hechas a mano con dedicación y creatividad
+              Piezas únicas hechas a mano con dedicación y creatividad artesanal
             </p>
           </div>
 

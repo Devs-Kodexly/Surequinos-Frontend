@@ -4,13 +4,19 @@ import Link from "next/link"
 import Image from "next/image"
 import { ShoppingCart, Menu, X } from "lucide-react"
 import { useState } from "react"
+import React from "react"
 import { CartSidebar } from "./cart-sidebar"
 import { useCart } from "@/lib/cart-context"
 
 export function Header() {
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { itemCount } = useCart()
+  const { itemCount, setOpenCart } = useCart()
+
+  // Registrar la función para abrir el carrito
+  React.useEffect(() => {
+    setOpenCart(() => setIsCartOpen(true))
+  }, [])
 
   return (
     <>

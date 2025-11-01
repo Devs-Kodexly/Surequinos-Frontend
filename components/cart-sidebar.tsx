@@ -4,7 +4,7 @@ import { X, Minus, Plus, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { useCart } from "@/lib/cart-context"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -149,54 +149,54 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             </>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-white text-title text-3xl font-serif">Resumen</h2>
+              <div className="flex items-center justify-between mb-4 md:mb-6">
+                <h2 className="text-white text-xl font-serif">Resumen</h2>
                 <button onClick={onClose} className="text-white hover:text-[#E5AB4A]">
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="mb-6">
+              <div className="mb-4 md:mb-6">
                 <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder="Código de cupón (opcional)"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
-                    className="flex-1 bg-white text-gray-800 placeholder:text-gray-400 px-4 py-3 rounded"
+                    className="flex-1 bg-white text-gray-800 placeholder:text-gray-400 px-3 py-2 rounded text-sm"
                   />
-                  <button className="px-6 py-3 border-2 border-[#E5AB4A] text-[#E5AB4A] rounded hover:bg-[#E5AB4A] hover:text-[#0F0B0A] transition-colors font-semibold">
+                  <button className="px-4 py-2 border-2 border-[#E5AB4A] text-[#E5AB4A] rounded hover:bg-[#E5AB4A] hover:text-[#0F0B0A] transition-colors font-semibold text-sm whitespace-nowrap">
                     APLICAR
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-3 mb-6 text-body">
+              <div className="space-y-2 mb-4 md:mb-6 text-sm">
                 <div className="flex justify-between">
                   <span className="text-white">Subtotal</span>
-                  <span className="text-white">{formatPrice(subtotal)}</span>
+                  <span className="text-white text-price">{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white">Descuento</span>
-                  <span className="text-white">- {formatPrice(discount)}</span>
+                  <span className="text-white text-price">- {formatPrice(discount)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white">Envío</span>
-                  <span className="text-white">{formatPrice(shipping)}</span>
+                  <span className="text-white text-price">{formatPrice(shipping)}</span>
                 </div>
               </div>
 
-              <div className="flex justify-between items-center mb-6 pb-6 border-b border-[#2a2a2a]">
-                <span className="text-white font-semibold text-xl">Total</span>
-                <span className="text-[#E5AB4A] text-4xl font-bold">{formatPrice(finalTotal)}</span>
+              <div className="flex justify-between items-center mb-4 md:mb-6 pb-4 md:pb-6 border-b border-[#2a2a2a]">
+                <span className="text-white font-semibold text-lg">Total</span>
+                <span className="text-[#E5AB4A] text-price font-bold">{formatPrice(finalTotal)}</span>
               </div>
 
-              <div className="mb-6">
-                <label className="text-white text-body mb-2 block">Destino de envío</label>
+              <div className="mb-4">
+                <label className="text-white text-sm mb-2 block">Destino de envío</label>
                 <select
                   value={shippingOption}
                   onChange={(e) => setShippingOption(e.target.value)}
-                  className="w-full bg-white text-gray-800 px-4 py-3 rounded"
+                  className="w-full bg-white text-gray-800 px-3 py-2 rounded text-sm"
                 >
                   <option>Bogotá (retiro en taller - $0)</option>
                   <option>Medellín - $50.000</option>
@@ -204,17 +204,17 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 </select>
               </div>
 
-              <Button className="w-full bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white py-6 text-lg font-semibold">
+              <Button className="w-full bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white py-3 text-sm font-semibold">
                 FINALIZAR COMPRA
               </Button>
 
-              <p className="text-muted-foreground text-sm text-center mt-4">
+              <p className="text-muted-foreground text-xs md:text-sm text-center mt-3 md:mt-4">
                 Pagos seguros. Tiempo de fabricación: 10-15 días hábiles.
               </p>
 
               <button
                 onClick={() => setShowCheckout(false)}
-                className="w-full text-center text-[#E5AB4A] text-sm mt-4 hover:underline"
+                className="w-full text-center text-[#E5AB4A] text-xs md:text-sm mt-3 md:mt-4 hover:underline"
               >
                 ← Volver al carrito
               </button>

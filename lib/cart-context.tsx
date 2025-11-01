@@ -19,12 +19,15 @@ interface CartContextType {
   clearCart: () => void
   total: number
   itemCount: number
+  openCart: () => void
+  setOpenCart: (callback: () => void) => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  const [openCartCallback, setOpenCartCallback] = useState<(() => void) | null>(null)
 
   const addItem = (item: Omit<CartItem, "quantity">) => {
     setItems((prev) => {
@@ -34,6 +37,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, { ...item, quantity: 1 }]
     })
+    
+    // Ya no abrimos el carrito automáticamente
+    // La notificación se manejará desde el componente
   }
 
   const removeItem = (id: string) => {
@@ -55,8 +61,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
 
+  const openCart = () => {
+    if (openCartCallback) {
+      openCartCallback()
+    }
+  }
+
+  const setOpenCart = (callback: () => void) => {
+    setOpenCartCallback(() => callback)
+  }
+
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total, itemCount }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total, itemCount, openCart, setOpenCart }}>
       {children}
     </CartContext.Provider>
   )

@@ -7,7 +7,7 @@ export default function SalePage() {
   const products = [
     {
       id: "1",
-      title: "Silla de Trocha – Temporada Pasada",
+      title: "Silla de Trocha – Temporada",
       description: "Silla de trocha de la colección anterior con pequeños detalles estéticos.",
       price: "$ 3.150.000",
       priceNumber: 3150000,
@@ -50,9 +50,8 @@ export default function SalePage() {
           <h1 className="text-title text-[#E5AB4A] mb-4 flex items-center justify-center gap-4 flex-wrap">
             🔥 SALE – Ofertas Especiales 🔥
           </h1>
-          <p className="text-body text-muted-foreground max-w-3xl mx-auto mb-6">
-            Aprovecha estas ofertas exclusivas en productos seleccionados. ¡Piezas únicas con la misma calidad
-            artesanal!
+          <p className="text-body text-muted-foreground max-w-4xl mx-auto mb-6">
+            Aprovecha estas ofertas exclusivas en productos seleccionados. ¡Piezas únicas con la misma calidad artesanal!
           </p>
           <Button className="bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white px-8 rounded-full">
             ⏱ OFERTAS POR TIEMPO LIMITADO

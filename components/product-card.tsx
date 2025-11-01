@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/lib/cart-context"
+import { useToast } from "@/lib/toast-context"
 
 interface ProductCardProps {
   id: string
@@ -32,6 +33,7 @@ export function ProductCard({
   image,
 }: ProductCardProps) {
   const { addItem } = useCart()
+  const { showToast } = useToast()
 
   const handleAddToCart = () => {
     addItem({
@@ -41,6 +43,9 @@ export function ProductCard({
       image: image || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`,
       color: "Negro",
     })
+    
+    // Mostrar notificación de éxito
+    showToast("Producto añadido correctamente", "success", 3000)
   }
 
   return (
