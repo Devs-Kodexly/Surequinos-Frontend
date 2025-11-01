@@ -62,7 +62,7 @@ export function ToastNotification({
           ? "translate-y-0 opacity-100 scale-100" 
           : "-translate-y-full opacity-0 scale-95"
         }
-        pointer-events-auto max-w-sm mx-auto sm:mx-0
+        pointer-events-auto w-80 sm:w-96 max-w-[calc(100vw-2rem)]
       `}
     >
       <div className="flex items-center gap-3">
