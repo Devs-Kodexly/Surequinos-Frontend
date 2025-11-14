@@ -288,11 +288,41 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Related Products */}
-        <div className="mb-16">
+        <div className="mb-4 md:mb-8">
           <h2 className="text-center font-bold mb-8" style={{ fontFamily: 'Inter', fontSize: '24px', color: '#F2E9E4' }}>
             También te puede interesar
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Mobile: Horizontal scroll */}
+          <div className="md:hidden overflow-x-auto pb-4 -mx-4 px-4">
+            <div className="flex gap-3" style={{ width: 'max-content' }}>
+              {RELATED_PRODUCTS.map((product) => (
+                <div key={product.id} className="bg-[#1B1715] rounded-lg overflow-hidden" style={{ width: '200px', flexShrink: 0 }}>
+                  <div className="aspect-square relative">
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <h3 className="text-white text-xs mb-1.5 line-clamp-2">{product.name}</h3>
+                    <p className="text-[#E5AB4A] font-semibold text-sm mb-2">{formatPrice(product.price)}</p>
+                    <div className="flex flex-col gap-1.5">
+                      <Button size="sm" variant="outline" className="w-full text-xs py-1.5 border-gray-700 text-gray-400">
+                        Añadir
+                      </Button>
+                      <Button size="sm" variant="outline" className="w-full text-xs py-1.5 border-[#E5AB4A] text-[#E5AB4A]">
+                        Ver detalles
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Desktop: Grid */}
+          <div className="hidden md:grid grid-cols-4 gap-4">
             {RELATED_PRODUCTS.map((product) => (
               <div key={product.id} className="bg-[#1B1715] rounded-lg overflow-hidden">
                 <div className="aspect-square relative">

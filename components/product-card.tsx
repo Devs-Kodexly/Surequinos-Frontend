@@ -371,13 +371,13 @@ export function ProductCard({
           <Button 
             onClick={handleAddToCart} 
             disabled={totalStock === 0}
-            className="flex-1 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg py-6 font-medium"
+            className="flex-1 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg py-3 md:py-6 font-medium"
           >
             {totalStock === 0 ? "AGOTADO" : "Añadir"}
           </Button>
           <Button
             variant="outline"
-            className="flex-1 border-[#C0763A] text-[#C0763A] hover:bg-[#C0763A] hover:text-[#0F0B0A] bg-transparent rounded-lg py-6 font-medium"
+            className="flex-1 border-[#C0763A] text-[#C0763A] hover:bg-[#C0763A] hover:text-[#0F0B0A] bg-transparent rounded-lg py-3 md:py-6 font-medium"
             onClick={() => window.location.href = `/producto/${slug || id}`}
           >
             Detalles
