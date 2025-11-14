@@ -52,63 +52,64 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 </button>
               </div>
 
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 mb-6">
                 {items.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">Tu carrito está vacío</p>
                 ) : (
                   items.map((item) => (
-                    <div key={item.id} className="flex gap-4 p-4 bg-[#0F0B0A] rounded-lg">
-                      <Image
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.name}
-                        width={80}
-                        height={80}
-                        className="rounded object-cover"
-                      />
-                      <div className="flex-1">
-                        <h3 className="text-white font-medium">{item.name}</h3>
-                        <p className="text-muted-foreground text-sm">{item.color}</p>
-                        <p className="text-[#E5AB4A] font-semibold mt-1">{formatPrice(item.price)}</p>
-                        <div className="flex items-center gap-2 mt-2">
+                    <div key={item.id} className="flex gap-3 p-3 bg-[#0F0B0A] rounded-lg">
+                      <div className="relative w-24 h-24 flex-shrink-0">
+                        <Image
+                          src={item.image || "/placeholder.svg"}
+                          alt={item.name}
+                          fill
+                          className="rounded object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium text-sm leading-tight mb-1" style={{ fontFamily: 'Inter' }}>{item.name}</h3>
+                        <p className="text-muted-foreground text-xs mb-1" style={{ fontFamily: 'Inter' }}>{item.color}</p>
+                        <p className="text-[#E5AB4A] font-semibold mb-2" style={{ fontFamily: 'Inter', fontSize: '15px', lineHeight: '100%' }}>{formatPrice(item.price)}</p>
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            className="w-8 h-8 rounded bg-[#1A1311] flex items-center justify-center text-white hover:bg-[#2a2a2a]"
+                            className="w-7 h-7 rounded bg-[#1A1311] flex items-center justify-center text-white hover:bg-[#2a2a2a]"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3 h-3" />
                           </button>
                           <input
                             type="text"
                             value={item.quantity}
                             readOnly
-                            className="w-12 text-center bg-[#0F0B0A] border border-[#2a2a2a] rounded text-white py-1"
+                            className="w-10 text-center bg-[#0F0B0A] border border-[#2a2a2a] rounded text-white py-1 text-sm"
                           />
                           <button
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="w-8 h-8 rounded bg-[#1A1311] flex items-center justify-center text-white hover:bg-[#2a2a2a]"
+                            className="w-7 h-7 rounded bg-[#1A1311] flex items-center justify-center text-white hover:bg-[#2a2a2a]"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
-                      <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-white">
-                        <X className="w-5 h-5" />
+                      <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-white self-start">
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   ))
                 )}
               </div>
 
-              <div className="border-t border-[#2a2a2a] pt-4 mb-6">
-                <div className="flex gap-2 mb-4">
-                  <button className="flex-1 py-2 px-4 bg-[#0F0B0A] border border-[#E5AB4A] rounded text-white text-sm hover:bg-[#1A1311] transition-colors">
+              <div className="border-t border-[#2a2a2a] pt-4 mb-4">
+                <div className="flex gap-2 mb-3">
+                  <button className="flex-1 py-2 px-3 bg-[#0F0B0A] border border-[#E5AB4A] rounded text-white text-xs hover:bg-[#1A1311] transition-colors">
                     Retiro en taller
                   </button>
-                  <button className="flex-1 py-2 px-4 border border-[#2a2a2a] rounded text-muted-foreground text-sm hover:bg-[#1A1311] transition-colors">
+                  <button className="flex-1 py-2 px-3 border border-[#2a2a2a] rounded text-muted-foreground text-xs hover:bg-[#1A1311] transition-colors">
                     Cupón
                   </button>
                 </div>
 
-                <div className="space-y-2 text-sm mb-4">
+                <div className="space-y-1.5 text-xs mb-3" style={{ fontFamily: 'Inter' }}>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="text-white">{formatPrice(subtotal)}</span>
@@ -123,9 +124,9 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#2a2a2a]">
-                  <span className="text-white font-semibold">Total</span>
-                  <span className="text-[#E5AB4A] text-2xl font-bold">{formatPrice(finalTotal)}</span>
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#2a2a2a]">
+                  <span className="text-white font-semibold text-sm" style={{ fontFamily: 'Inter' }}>Total</span>
+                  <span className="text-[#E5AB4A] font-bold" style={{ fontFamily: 'Inter', fontSize: '17.7px', lineHeight: '100%' }}>{formatPrice(finalTotal)}</span>
                 </div>
 
                 <div className="space-y-3">
