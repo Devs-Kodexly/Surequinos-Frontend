@@ -4,7 +4,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { OptimizedImage } from "@/components/optimized-image"
 
 // Datos de la galería con hotspots
@@ -45,6 +45,14 @@ export default function GaleriaPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null)
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
+
+  // Detectar si es dispositivo táctil
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0)
+    }
+  }, [])
 
   // Filtrar items
   const filteredItems = GALLERY_ITEMS.filter((item) => {
@@ -193,9 +201,21 @@ export default function GaleriaPage() {
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
-                      setActiveHotspot(activeHotspot === hotspot.id ? null : hotspot.id)
+                      // Solo toggle en dispositivos táctiles
+                      if (isTouchDevice) {
+                        setActiveHotspot(activeHotspot === hotspot.id ? null : hotspot.id)
+                      }
                     }}
-                    onMouseEnter={() => setActiveHotspot(hotspot.id)}
+                    onMouseEnter={() => {
+                      if (!isTouchDevice) {
+                        setActiveHotspot(hotspot.id)
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (!isTouchDevice) {
+                        setActiveHotspot(null)
+                      }
+                    }}
                   >
                     {/* Círculo exterior transparente - más pequeño en móvil */}
                     <div className="absolute w-9 h-9 md:w-12 md:h-12 bg-gray-500/30 rounded-full"></div>
@@ -221,7 +241,16 @@ export default function GaleriaPage() {
                         maxWidth: window.innerWidth < 768 ? '320px' : 'none'
                       }}
                       onClick={(e) => e.stopPropagation()}
-                      onMouseLeave={() => setActiveHotspot(null)}
+                      onMouseEnter={() => {
+                        if (!isTouchDevice) {
+                          setActiveHotspot(hotspot.id)
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (!isTouchDevice) {
+                          setActiveHotspot(null)
+                        }
+                      }}
                     >
                       <div className="flex gap-3 md:gap-4">
                         {/* Imagen */}

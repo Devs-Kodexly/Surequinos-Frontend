@@ -297,14 +297,14 @@ export default function ProductDetailPage() {
             <div className="flex gap-3" style={{ width: 'max-content' }}>
               {RELATED_PRODUCTS.map((product) => (
                 <div key={product.id} className="bg-[#1B1715] rounded-lg overflow-hidden" style={{ width: '200px', flexShrink: 0 }}>
-                  <div className="aspect-square relative">
+                  <Link href={`/producto/${product.id}`} className="block aspect-square relative cursor-pointer">
                     <Image
                       src={product.image}
                       alt={product.name}
                       fill
-                      className="object-cover"
+                      className="object-cover hover:opacity-90 transition-opacity"
                     />
-                  </div>
+                  </Link>
                   <div className="p-3">
                     <h3 className="text-white text-xs mb-1.5 line-clamp-2">{product.name}</h3>
                     <p className="text-[#E5AB4A] font-semibold text-sm mb-2">{formatPrice(product.price)}</p>
@@ -312,9 +312,11 @@ export default function ProductDetailPage() {
                       <Button size="sm" variant="outline" className="w-full text-xs py-1.5 border-gray-700 text-gray-400">
                         Añadir
                       </Button>
-                      <Button size="sm" variant="outline" className="w-full text-xs py-1.5 border-[#E5AB4A] text-[#E5AB4A]">
-                        Ver detalles
-                      </Button>
+                      <Link href={`/producto/${product.id}`}>
+                        <Button size="sm" variant="outline" className="w-full text-xs py-1.5 border-[#E5AB4A] text-[#E5AB4A]">
+                          Ver detalles
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -325,14 +327,14 @@ export default function ProductDetailPage() {
           <div className="hidden md:grid grid-cols-4 gap-4">
             {RELATED_PRODUCTS.map((product) => (
               <div key={product.id} className="bg-[#1B1715] rounded-lg overflow-hidden">
-                <div className="aspect-square relative">
+                <Link href={`/producto/${product.id}`} className="block aspect-square relative cursor-pointer">
                   <Image
                     src={product.image}
                     alt={product.name}
                     fill
-                    className="object-cover"
+                    className="object-cover hover:opacity-90 transition-opacity"
                   />
-                </div>
+                </Link>
                 <div className="p-4">
                   <h3 className="text-white text-sm mb-2">{product.name}</h3>
                   <p className="text-[#E5AB4A] font-semibold mb-3">{formatPrice(product.price)}</p>
@@ -340,9 +342,11 @@ export default function ProductDetailPage() {
                     <Button size="sm" variant="outline" className="flex-1 text-xs border-gray-700 text-gray-400">
                       Añadir
                     </Button>
-                    <Button size="sm" variant="outline" className="flex-1 text-xs border-[#E5AB4A] text-[#E5AB4A]">
-                      Ver detalles
-                    </Button>
+                    <Link href={`/producto/${product.id}`} className="flex-1">
+                      <Button size="sm" variant="outline" className="w-full text-xs border-[#E5AB4A] text-[#E5AB4A]">
+                        Ver detalles
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </div>
