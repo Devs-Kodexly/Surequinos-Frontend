@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { useCart } from "@/lib/cart-context"
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -12,10 +13,16 @@ interface CartSidebarProps {
 }
 
 export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
+  const router = useRouter()
   const { items, removeItem, updateQuantity, total, itemCount } = useCart()
   const [showCheckout, setShowCheckout] = useState(false)
   const [couponCode, setCouponCode] = useState("")
   const [shippingOption, setShippingOption] = useState("Bogotá (retiro en taller - $0)")
+
+  const handleProceedToCheckout = () => {
+    onClose()
+    router.push("/checkout")
+  }
 
   if (!isOpen) return null
 
@@ -130,7 +137,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     PEDIR POR WHATSAPP
                   </Button>
                   <Button
-                    onClick={() => setShowCheckout(true)}
+                    onClick={handleProceedToCheckout}
                     disabled={items.length === 0}
                     className="w-full bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white"
                   >

@@ -14,7 +14,9 @@ export default function SalePage() {
       originalPrice: "$ 4.500.000",
       discount: "-30%",
       stock: "2 en stock",
-      image: "/silla-de-montar-artesanal-.jpg"
+      image: "/silla-de-montar-artesanal-.jpg",
+      preselectedSize: "15\"",
+      preselectedColor: "Roble"
     },
     {
       id: "2",
@@ -25,7 +27,9 @@ export default function SalePage() {
       originalPrice: "$ 850.000",
       discount: "-30%",
       stock: "3 en stock",
-      image: "/apero.jpg"
+      image: "/apero.jpg",
+      preselectedSize: "14\"",
+      preselectedColor: "Café"
     },
     {
       id: "3",
@@ -36,7 +40,9 @@ export default function SalePage() {
       originalPrice: "$ 1.950.000",
       discount: "-30%",
       stock: "1 en stock",
-      image: "/silla-de-paso-negra.jpg"
+      image: "/silla-de-paso-negra.jpg",
+      preselectedSize: "16\"",
+      preselectedColor: "Negro"
     },
   ]
 
@@ -64,7 +70,11 @@ export default function SalePage() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {products.map((product) => (
-              <ProductCard key={product.id} {...product} />
+              <ProductCard 
+                key={product.id} 
+                {...product} 
+                isSaleProduct={true}
+              />
             ))}
           </div>
         </div>
