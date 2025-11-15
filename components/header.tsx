@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { ShoppingCart, Menu, X } from "lucide-react"
+import { ShoppingCart, Menu, X, LogIn } from "lucide-react"
 import { useState } from "react"
 import React from "react"
 import { CartSidebar } from "./cart-sidebar"
@@ -49,8 +49,12 @@ export function Header() {
             <Link href="/sale" className="text-white hover:text-[#E5AB4A] transition-colors text-sm font-semibold">
               SALE
             </Link>
-            <Link href="/admin" className="text-white hover:text-[#E5AB4A] transition-colors text-sm font-semibold">
-              Admin
+            <Link 
+              href="/login" 
+              className="text-white hover:text-[#E5AB4A] transition-colors flex items-center gap-2"
+              title="Inicio de sesión"
+            >
+              <LogIn className="w-5 h-5" />
             </Link>
             <button
               onClick={() => setIsCartOpen(true)}
@@ -147,11 +151,12 @@ export function Header() {
                   <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                 </Link>
                 <Link
-                  href="/admin"
-                  className="flex items-center px-4 py-3 text-white hover:text-[#E5AB4A] hover:bg-[#E5AB4A]/10 rounded-lg transition-all duration-200 group font-semibold"
+                  href="/login"
+                  className="flex items-center px-4 py-3 text-white hover:text-[#E5AB4A] hover:bg-[#E5AB4A]/10 rounded-lg transition-all duration-200 group"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <span className="text-base">Admin</span>
+                  <LogIn className="w-5 h-5 mr-2" />
+                  <span className="text-base">Acceso</span>
                   <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                 </Link>
               </div>
