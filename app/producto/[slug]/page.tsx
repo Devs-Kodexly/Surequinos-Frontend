@@ -82,8 +82,13 @@ export default function ProductDetailPage() {
       return
     }
 
+    // Para productos hardcodeados sin variantes reales, crear un variantId único
+    // basado en el producto, color y talla seleccionados
+    const variantId = `${PRODUCT.id}-${PRODUCT.colors[selectedColor].name}-${selectedSize}`
+
     addItem({
-      id: PRODUCT.id,
+      id: variantId, // Usar variantId como id para compatibilidad
+      variantId: variantId, // ID único de la variante (producto + color + talla)
       name: PRODUCT.name,
       price: PRODUCT.price,
       image: PRODUCT.images[selectedImage],

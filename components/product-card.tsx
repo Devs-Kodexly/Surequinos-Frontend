@@ -106,8 +106,15 @@ export function ProductCard({
     // Usar variante seleccionada o la primera disponible
     const variantToAdd = selectedVariant || variants.find(v => v.available) || variants[0]
 
+    // Validar que existe una variante
+    if (!variantToAdd || !variantToAdd.id) {
+      showToast("Por favor selecciona una variante del producto", "error", 3000)
+      return
+    }
+
     addItem({
-      id,
+      id: variantToAdd.id, // Usar el variantId como id para compatibilidad
+      variantId: variantToAdd.id, // ID de la variante
       name: title,
       price: currentPrice,
       image: currentImage || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`,

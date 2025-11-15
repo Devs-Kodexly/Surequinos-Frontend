@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input"
 import { SelectCustom } from "@/components/ui/select-custom"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, total } = useCart()
+  const { items, total, clearCart } = useCart()
   const [currentStep, setCurrentStep] = useState(1)
   const [couponCode, setCouponCode] = useState("")
 
@@ -47,7 +48,9 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("link")
   const [invoiceNotes, setInvoiceNotes] = useState("")
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const [orderNumber] = useState(`ORD-${Math.floor(1000 + Math.random() * 9000)}`)
+  const [orderNumber, setOrderNumber] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleContinue = () => {
     // Aquí iría la validación del formulario
@@ -58,11 +61,120 @@ export default function CheckoutPage() {
     setCurrentStep(1)
   }
 
-  const handleConfirmOrder = () => {
-    setShowConfirmation(true)
+  const handleConfirmOrder = async () => {
+    // Validar campos requeridos
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.document) {
+      setError("Por favor completa todos los campos requeridos")
+      return
+    }
+
+    if (items.length === 0) {
+      setError("El carrito está vacío")
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      // Construir la dirección completa
+      const fullAddress = formData.address
+        ? `${formData.address}, ${formData.city}, ${formData.department}`
+        : `${formData.city}, ${formData.department}`
+
+      // Preparar los items del pedido usando variantId
+      const orderItems = items.map(item => ({
+        variantId: item.variantId || item.id, // Usar variantId si está disponible, sino usar id como fallback
+        quantity: item.quantity
+      }))
+
+      // Mapear el método de pago al formato del backend
+      const paymentMethodMap: Record<string, string> = {
+        "link": "TARJETA_CREDITO",
+        "transferencia": "TRANSFERENCIA_BANCARIA",
+        "contraentrega": "CONTRAENTREGA"
+      }
+      const mappedPaymentMethod = paymentMethodMap[paymentMethod] || paymentMethod.toUpperCase()
+
+      // Preparar las notas combinando observaciones y notas de facturación
+      // Si es retiro en taller, agregar nota automática
+      const notesArray = []
+      
+      if (formData.shippingMethod === "retiro") {
+        notesArray.push("RETIRO EN TALLER (Sabaneta)")
+      }
+      
+      if (formData.observations) {
+        notesArray.push(formData.observations)
+      }
+      
+      if (invoiceNotes) {
+        notesArray.push(invoiceNotes)
+      }
+      
+      const notes = notesArray.length > 0 ? notesArray.join(" | ") : undefined
+
+      // Calcular el valor de descuento (por ahora 0, se puede implementar lógica de cupones después)
+      const discountValue = 0
+
+      // Calcular el valor de envío
+      const shippingValue = formData.shippingMethod === "retiro" 
+        ? 0 
+        : formData.shippingMethod === "medellin" 
+        ? 50000 
+        : 0
+
+      // Preparar los datos de la orden
+      const orderData = {
+        email: formData.email,
+        documentNumber: formData.document,
+        clientName: formData.fullName,
+        clientPhoneNumber: formData.phone,
+        discountValue: discountValue,
+        notes: notes,
+        paymentMethod: mappedPaymentMethod,
+        shippingAddress: fullAddress,
+        shippingValue: shippingValue,
+        items: orderItems
+      }
+
+      // Crear la orden en el backend
+      const response = await api.createOrder(orderData)
+      
+      // Extraer el número de orden de la respuesta del backend
+      // La respuesta tiene el formato: { orderNumber: "ORD-20251115165304-732", ... }
+      let finalOrderNumber = ""
+      if (response && response.orderNumber) {
+        finalOrderNumber = response.orderNumber
+        console.log("Número de orden recibido del backend:", response.orderNumber)
+      } else {
+        // Fallback: generar número de orden localmente si no viene del backend
+        finalOrderNumber = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+        console.warn("No se recibió orderNumber del backend, usando fallback:", finalOrderNumber)
+        console.warn("Respuesta completa:", response)
+      }
+      
+      // Establecer el número de orden y mostrar confirmación primero
+      setOrderNumber(finalOrderNumber)
+      setShowConfirmation(true)
+      
+      console.log("Estableciendo showConfirmation a true con orderNumber:", finalOrderNumber)
+      
+      // Limpiar el carrito después de mostrar el modal
+      // Usar setTimeout para asegurar que el modal se renderice primero
+      setTimeout(() => {
+        clearCart()
+      }, 100)
+    } catch (err) {
+      console.error("Error creating order:", err)
+      setError(err instanceof Error ? err.message : "Error al crear la orden. Por favor intenta de nuevo.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  if (items.length === 0) {
+  // No mostrar mensaje de carrito vacío si el modal de confirmación está activo
+  if (items.length === 0 && !showConfirmation) {
     return (
       <div className="min-h-screen bg-[#0F0B0A]">
         <Header />
@@ -525,35 +637,109 @@ export default function CheckoutPage() {
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8">
-                    {/* Envío */}
-                    <div>
-                      <h3 className="text-[#F2E9E4] font-semibold mb-3" style={{ fontFamily: 'Inter', fontSize: '16px', lineHeight: '100%' }}>
-                        Envío
-                      </h3>
-                      <div className="text-gray-400" style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '160%' }}>
-                        <p>Juan Pérez</p>
-                        <p>Medellín</p>
-                        <p>Calle 45 #23-67, Barrio El Poblado</p>
+                    {/* Columna Izquierda */}
+                    <div className="space-y-6">
+                      {/* Datos del Cliente */}
+                      <div>
+                        <h3 className="text-[#F2E9E4] font-semibold mb-3" style={{ fontFamily: 'Inter', fontSize: '16px', lineHeight: '100%' }}>
+                          Datos del Cliente
+                        </h3>
+                        <div className="text-gray-400" style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '160%' }}>
+                          {formData.fullName && <p><span className="text-gray-500">Nombre:</span> {formData.fullName}</p>}
+                          {formData.email && <p><span className="text-gray-500">Correo:</span> {formData.email}</p>}
+                          {formData.phone && <p><span className="text-gray-500">Teléfono:</span> {formData.phone}</p>}
+                          {formData.document && <p><span className="text-gray-500">Documento:</span> {formData.document}</p>}
+                        </div>
+                      </div>
+
+                      {/* Pago */}
+                      <div>
+                        <h3 className="text-[#F2E9E4] font-semibold mb-3" style={{ fontFamily: 'Inter', fontSize: '16px', lineHeight: '100%' }}>
+                          Pago
+                        </h3>
+                        <div className="text-gray-400" style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '160%' }}>
+                          {paymentMethod === "link" && (
+                            <p><span className="text-gray-500">Método:</span> Link de pago (tarjeta / PSE)</p>
+                          )}
+                          {paymentMethod === "transferencia" && (
+                            <p><span className="text-gray-500">Método:</span> Transferencia bancaria</p>
+                          )}
+                          {paymentMethod === "contraentrega" && (
+                            <p><span className="text-gray-500">Método:</span> Contraentrega (según ciudad)</p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Pago */}
-                    <div>
-                      <h3 className="text-[#F2E9E4] font-semibold mb-3" style={{ fontFamily: 'Inter', fontSize: '16px', lineHeight: '100%' }}>
-                        Pago
-                      </h3>
-                      <div className="text-gray-400" style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '160%' }}>
-                        <p>Link de pago (tarjeta / PSE)</p>
+                    {/* Columna Derecha */}
+                    <div className="space-y-6">
+                      {/* Envío */}
+                      <div>
+                        <h3 className="text-[#F2E9E4] font-semibold mb-3" style={{ fontFamily: 'Inter', fontSize: '16px', lineHeight: '100%' }}>
+                          Envío
+                        </h3>
+                        <div className="text-gray-400" style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '160%' }}>
+                          {formData.department && <p><span className="text-gray-500">Departamento:</span> {formData.department}</p>}
+                          {formData.city && <p><span className="text-gray-500">Ciudad:</span> {formData.city}</p>}
+                          {formData.address ? (
+                            <p><span className="text-gray-500">Dirección:</span> {formData.address}</p>
+                          ) : (
+                            <p className="text-gray-500 italic">Sin dirección específica</p>
+                          )}
+                          {formData.shippingMethod === "retiro" && (
+                            <p className="text-[#E5AB4A] mt-2 font-medium">Retiro en taller (Sabaneta)</p>
+                          )}
+                          {formData.shippingMethod === "medellin" && (
+                            <p className="text-[#E5AB4A] mt-2 font-medium">Envío a Medellín</p>
+                          )}
+                          {formData.shippingMethod === "otras" && (
+                            <p className="text-[#E5AB4A] mt-2 font-medium">Otras ciudades - se cotiza</p>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Observaciones */}
+                      {(formData.observations || invoiceNotes) && (
+                        <div>
+                          <h3 className="text-[#F2E9E4] font-semibold mb-3" style={{ fontFamily: 'Inter', fontSize: '16px', lineHeight: '100%' }}>
+                            Observaciones
+                          </h3>
+                          <div className="text-gray-400" style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '160%' }}>
+                            {formData.observations && (
+                              <div className="mb-3">
+                                <p className="text-gray-500 mb-1 text-xs">Observaciones del pedido:</p>
+                                <p className="text-white">{formData.observations}</p>
+                              </div>
+                            )}
+                            {invoiceNotes && (
+                              <div>
+                                {formData.observations && <div className="border-t border-gray-700 pt-3 mt-3"></div>}
+                                <p className="text-gray-500 mb-1 text-xs">Notas de facturación:</p>
+                                <p className="text-white">{invoiceNotes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {/* Error message */}
+                {error && (
+                  <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
+                    <p className="text-red-400 text-sm" style={{ fontFamily: 'Inter' }}>
+                      {error}
+                    </p>
+                  </div>
+                )}
 
                 {/* Buttons at bottom */}
                 <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 mt-auto pt-6">
                   <Button
                     onClick={() => setCurrentStep(2)}
                     variant="outline"
+                    disabled={isSubmitting}
                     className="w-full sm:w-auto border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white bg-transparent px-6 md:px-8 py-3"
                     style={{ fontFamily: 'Inter', fontSize: '14px' }}
                   >
@@ -561,10 +747,11 @@ export default function CheckoutPage() {
                   </Button>
                   <Button
                     onClick={handleConfirmOrder}
-                    className="w-full sm:w-auto bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white px-6 md:px-8 py-3 font-medium"
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white px-6 md:px-8 py-3 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ fontFamily: 'Inter', fontSize: '14px' }}
                   >
-                    Confirmar compra
+                    {isSubmitting ? "Procesando..." : "Confirmar compra"}
                   </Button>
                 </div>
               </div>
@@ -576,9 +763,15 @@ export default function CheckoutPage() {
       {/* Confirmation Modal */}
       {showConfirmation && (
         <>
-          <div className="fixed inset-0 bg-black/80 z-50" onClick={() => setShowConfirmation(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-[#1B1715] rounded-lg p-8 md:p-12 max-w-lg w-full text-center">
+          <div 
+            className="fixed inset-0 bg-black/80 z-[100]" 
+            onClick={() => {
+              console.log("Cerrando modal")
+              setShowConfirmation(false)
+            }} 
+          />
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+            <div className="bg-[#1B1715] rounded-lg p-8 md:p-12 max-w-lg w-full text-center pointer-events-auto">
               {/* Check Icon */}
               <div className="mb-6">
                 <svg className="w-16 h-16 mx-auto text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -593,7 +786,19 @@ export default function CheckoutPage() {
 
               {/* Order Number */}
               <p className="text-gray-300 mb-8" style={{ fontFamily: 'Inter', fontSize: '16px', lineHeight: '140%' }}>
-                Número de orden <span className="font-bold text-white">#{orderNumber}</span>. Te enviaremos un correo con el detalle y el estado del envío.
+                {orderNumber ? (
+                  <>
+                    Número de orden <span className="font-bold text-white">#{orderNumber}</span>. 
+                    <br />
+                    Te enviaremos un correo con el detalle y el estado del envío.
+                  </>
+                ) : (
+                  <>
+                    Tu pedido ha sido confirmado. 
+                    <br />
+                    Te enviaremos un correo con el detalle y el estado del envío.
+                  </>
+                )}
               </p>
 
               {/* Button */}

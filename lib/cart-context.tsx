@@ -3,7 +3,8 @@
 import { createContext, useContext, useState, type ReactNode } from "react"
 
 interface CartItem {
-  id: string
+  id: string // Mantener para compatibilidad, pero ahora será el variantId
+  variantId: string // ID de la variante del producto
   name: string
   color: string
   price: number
@@ -31,11 +32,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = (item: Omit<CartItem, "quantity">) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === item.id)
+      // Usar variantId como identificador único para encontrar items duplicados
+      const itemId = item.variantId || item.id
+      const existing = prev.find((i) => (i.variantId || i.id) === itemId)
       if (existing) {
-        return prev.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))
+        return prev.map((i) => ((i.variantId || i.id) === itemId ? { ...i, quantity: i.quantity + 1 } : i))
       }
-      return [...prev, { ...item, quantity: 1 }]
+      return [...prev, { ...item, id: item.variantId || item.id, quantity: 1 }]
     })
     
     // Ya no abrimos el carrito automáticamente
@@ -43,7 +46,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id))
+    setItems((prev) => prev.filter((i) => (i.variantId || i.id) !== id))
   }
 
   const updateQuantity = (id: string, quantity: number) => {
@@ -51,7 +54,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem(id)
       return
     }
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, quantity } : i)))
+    setItems((prev) => prev.map((i) => ((i.variantId || i.id) === id ? { ...i, quantity } : i)))
   }
 
   const clearCart = () => {
