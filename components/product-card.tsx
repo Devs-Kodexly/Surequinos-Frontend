@@ -6,8 +6,7 @@ import { OptimizedImage } from "@/components/optimized-image"
 import { useCart } from "@/lib/cart-context"
 import { useToast } from "@/lib/toast-context"
 import { ChevronDown } from "lucide-react"
-// COMENTADO: Imports del backend
-// import { cleanImageArray, cleanImageUrl, formatPrice } from "@/lib/api"
+import { cleanImageArray, cleanImageUrl, formatPrice } from "@/lib/api"
 
 interface ProductCardProps {
   id: string
@@ -66,63 +65,55 @@ export function ProductCard({
 }: ProductCardProps) {
   const { addItem } = useCart()
   const { showToast } = useToast()
-  
-  // COMENTADO: Lógica del backend para imágenes
-  // const productImages = cleanImageArray(image)
-  
+
+  // Procesar imágenes del backend
+  const productImages = cleanImageArray(image)
+
   const [selectedVariant, setSelectedVariant] = useState<any>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
-  
-  // COMENTADO: Lógica del backend para precios y variantes
-  // const currentPrice = selectedVariant ? selectedVariant.price : priceNumber
-  // const displayPrice = selectedVariant 
-  //   ? formatPrice(selectedVariant.price)
-  //   : price
-  
-  // Combinar todas las imágenes: primero las del producto, luego las de variantes
-  // const allImages = [
-  //   ...productImages,
-  //   ...variants.map(v => cleanImageUrl(v.imageUrl)).filter(Boolean)
-  // ]
-  
-  // const currentImage = selectedVariant?.imageUrl 
-  //   ? cleanImageUrl(selectedVariant.imageUrl)
-  //   : allImages[currentImageIndex] || productImages[0]
 
-  // Lógica simplificada para productos hardcodeados
-  const currentPrice = priceNumber
-  const displayPrice = price
-  const allImages = Array.isArray(image) ? image : [image]
-  const currentImage = allImages[currentImageIndex] || allImages[0]
+  // Lógica del backend para precios y variantes
+  const currentPrice = selectedVariant ? selectedVariant.price : priceNumber
+  const displayPrice = selectedVariant
+    ? formatPrice(selectedVariant.price)
+    : price
+
+  // Combinar todas las imágenes: primero las del producto, luego las de variantes
+  const variantImages = variants.map(v => cleanImageUrl(v.imageUrl)).filter((url): url is string => !!url)
+  const allImages = [...productImages, ...variantImages]
+
+  const currentImage = selectedVariant?.imageUrl
+    ? cleanImageUrl(selectedVariant.imageUrl)
+    : allImages[currentImageIndex] || productImages[0]
 
   // Estados para talla y color
   const [selectedSize, setSelectedSize] = useState<string>(preselectedSize || "")
   const [selectedColor, setSelectedColor] = useState<string>(preselectedColor || "Roble")
   const [showSizeTable, setShowSizeTable] = useState(false)
-  
+
   // Colores disponibles (hardcoded por ahora)
   const availableColors = [
     { name: "Roble", hex: "#C4622D" },
     { name: "Café", hex: "#8B5A3C" },
     { name: "Negro", hex: "#1A1A1A" }
   ]
-  
+
   // Tallas disponibles (hardcoded por ahora)
   const availableSizes = ['12"', '13"', '14"', '15"', '16"', '17"']
 
   const handleAddToCart = () => {
-    // COMENTADO: Lógica del backend para variantes
-    // const variantToAdd = selectedVariant || variants.find(v => v.available) || variants[0]
-    
+    // Usar variante seleccionada o la primera disponible
+    const variantToAdd = selectedVariant || variants.find(v => v.available) || variants[0]
+
     addItem({
       id,
       name: title,
       price: currentPrice,
       image: currentImage || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`,
-      color: selectedColor, // variantToAdd?.color || "Sin especificar",
+      color: variantToAdd?.color || selectedColor || "Sin especificar",
     })
-    
+
     // Mostrar notificación de éxito
     showToast("Producto añadido correctamente", "success", 3000)
   }
@@ -136,7 +127,7 @@ export function ProductCard({
       setIsTransitioning(true)
       setTimeout(() => {
         setCurrentImageIndex((prev) => (prev + 1) % allImages.length)
-        // setSelectedVariant(null) // COMENTADO: Reset variant selection when navigating manually
+        setSelectedVariant(null) // Reset variant selection when navigating manually
         setTimeout(() => setIsTransitioning(false), 50)
       }, 100)
     }
@@ -147,7 +138,7 @@ export function ProductCard({
       setIsTransitioning(true)
       setTimeout(() => {
         setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)
-        // setSelectedVariant(null) // COMENTADO: Reset variant selection when navigating manually
+        setSelectedVariant(null) // Reset variant selection when navigating manually
         setTimeout(() => setIsTransitioning(false), 50)
       }, 100)
     }
@@ -181,22 +172,21 @@ export function ProductCard({
             {getBadge()}
           </span>
         )}
-        
+
         {/* Badge derecho - stock */}
         {getStockDisplay() && (
           <span className="absolute top-4 right-4 px-4 py-2 rounded-full text-sm border-2 z-10 bg-black/60 backdrop-blur-sm border-gray-600 text-white">
             {getStockDisplay()}
           </span>
         )}
-        
-        <OptimizedImage 
-          src={currentImage} 
-          alt={title} 
+
+        <OptimizedImage
+          src={currentImage}
+          alt={title}
           fallbackSrc={`/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`}
-          fill 
-          className={`object-cover transition-opacity duration-200 ease-out ${
-            isTransitioning ? 'opacity-90' : 'opacity-100'
-          }`} 
+          fill
+          className={`object-cover transition-opacity duration-200 ease-out ${isTransitioning ? 'opacity-90' : 'opacity-100'
+            }`}
         />
 
         {/* Navigation arrows - subtle and discrete */}
@@ -231,13 +221,12 @@ export function ProductCard({
                 key={index}
                 onClick={() => {
                   setCurrentImageIndex(index)
-                  // setSelectedVariant(null) // COMENTADO
+                  setSelectedVariant(null)
                 }}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ease-out hover:scale-125 ${
-                  currentImageIndex === index
-                    ? 'bg-[#E5AB4A] shadow-lg scale-110'
-                    : 'bg-white/70 hover:bg-[#E5AB4A]/70 shadow-md'
-                }`}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ease-out hover:scale-125 ${currentImageIndex === index
+                  ? 'bg-[#E5AB4A] shadow-lg scale-110'
+                  : 'bg-white/70 hover:bg-[#E5AB4A]/70 shadow-md'
+                  }`}
               />
             ))}
           </div>
@@ -251,12 +240,12 @@ export function ProductCard({
           <h3 className="text-[#F2E9E4] font-bold text-[19.6px] leading-[26.4px] mb-2" style={{ fontFamily: 'Inter' }}>
             {title}
           </h3>
-          
+
           {/* Descripción del producto - altura fija con 2 líneas */}
           <p className="text-[#D9C9B7] font-normal text-[14.9px] leading-[100%] mb-4 line-clamp-2" style={{ fontFamily: 'Inter' }}>
             {description}
           </p>
-          
+
           {/* Precio */}
           <div className="flex items-baseline gap-2 mb-4">
             <span className="text-[#F0B676] font-bold text-[17.7px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
@@ -275,9 +264,9 @@ export function ProductCard({
               Tallas
             </label>
             {!isSaleProduct && (
-              <button 
+              <button
                 onClick={() => setShowSizeTable(true)}
-                className="text-[#C9B8A5] hover:text-[#E5AB4A] font-normal text-[12px] leading-[100%] transition-colors" 
+                className="text-[#C9B8A5] hover:text-[#E5AB4A] font-normal text-[12px] leading-[100%] transition-colors"
                 style={{ fontFamily: 'Inter' }}
               >
                 (Ver tabla)
@@ -292,7 +281,7 @@ export function ProductCard({
           ) : (
             // Selector normal para productos de tienda
             <div className="relative">
-              <select 
+              <select
                 value={selectedSize}
                 onChange={(e) => setSelectedSize(e.target.value)}
                 className="w-full bg-[#2A2420] border border-gray-700 rounded-lg px-4 py-3 pr-10 text-gray-300 text-sm appearance-none cursor-pointer focus:outline-none focus:border-[#AA3E11] transition-colors"
@@ -327,11 +316,10 @@ export function ProductCard({
                 {availableColors.map((color) => (
                   <div
                     key={color.name}
-                    className={`w-7 h-7 rounded-full ${
-                      selectedColor === color.name 
-                        ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715]' 
-                        : 'opacity-30'
-                    }`}
+                    className={`w-7 h-7 rounded-full ${selectedColor === color.name
+                      ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715]'
+                      : 'opacity-30'
+                      }`}
                     style={{ backgroundColor: color.hex }}
                     aria-label={`Color ${color.name}`}
                   />
@@ -349,11 +337,10 @@ export function ProductCard({
                   <button
                     key={color.name}
                     onClick={() => setSelectedColor(color.name)}
-                    className={`w-7 h-7 rounded-full transition-all duration-200 ${
-                      selectedColor === color.name 
-                        ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715]' 
-                        : 'hover:scale-105'
-                    }`}
+                    className={`w-7 h-7 rounded-full transition-all duration-200 ${selectedColor === color.name
+                      ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715]'
+                      : 'hover:scale-105'
+                      }`}
                     style={{ backgroundColor: color.hex }}
                     aria-label={`Color ${color.name}`}
                   />
@@ -368,8 +355,8 @@ export function ProductCard({
 
         {/* Botones */}
         <div className="flex gap-2 flex-col sm:flex-row">
-          <Button 
-            onClick={handleAddToCart} 
+          <Button
+            onClick={handleAddToCart}
             disabled={totalStock === 0}
             className="flex-1 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg py-3 md:py-6 font-medium"
           >
@@ -387,11 +374,11 @@ export function ProductCard({
 
       {/* Modal de tabla de tallas */}
       {showSizeTable && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200"
           onClick={() => setShowSizeTable(false)}
         >
-          <div 
+          <div
             className="bg-[#1B1715] rounded-xl p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
