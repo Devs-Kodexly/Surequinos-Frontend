@@ -75,6 +75,61 @@ export interface ImageUploadResponse {
   details?: string
 }
 
+export interface OrderItemDto {
+  id: string
+  orderId: string
+  variantId: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  createdAt: string
+  variantSku?: string
+  productName?: string
+}
+
+export interface OrderDto {
+  id: string
+  orderNumber: string
+  userId?: string
+  discountValue: number
+  notes?: string
+  paymentStatus: string
+  paymentMethod: string
+  shippingValue: number
+  status: string
+  subtotal: number
+  total: number
+  shippingAddress: string
+  createdAt: string
+  updatedAt: string
+  userName: string
+  userEmail: string
+  orderItems?: OrderItemDto[]
+}
+
+export interface CreateOrderResponse extends OrderDto {}
+
+export interface PaginatedResponse<T> {
+  content: T[]
+  pageable: {
+    pageNumber: number
+    pageSize: number
+    sort: {
+      sorted: boolean
+      unsorted: boolean
+      empty: boolean
+    }
+  }
+  totalElements: number
+  totalPages: number
+  last: boolean
+  first: boolean
+  size: number
+  number: number
+  numberOfElements: number
+  empty: boolean
+}
+
 // API Client Class
 class ApiClient {
   private baseURL: string
@@ -280,6 +335,81 @@ class ApiClient {
       value,
       displayOrder: index
     }))
+  }
+
+  // Orders API
+  async createOrder(data: {
+    email: string
+    documentNumber: string
+    clientName: string
+    clientPhoneNumber: string
+    discountValue: number
+    notes?: string
+    paymentMethod: string
+    shippingAddress: string
+    shippingValue: number
+    items: Array<{
+      variantId: string
+      quantity: number
+    }>
+  }): Promise<CreateOrderResponse> {
+    return this.request<CreateOrderResponse>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getOrders(page = 0, size = 20, sort = 'createdAt,desc'): Promise<PaginatedResponse<OrderDto>> {
+    return this.request<PaginatedResponse<OrderDto>>(`/orders?page=${page}&size=${size}&sort=${sort}`)
+  }
+
+  async getOrderById(id: string): Promise<OrderDto> {
+    return this.request<OrderDto>(`/orders/${id}`)
+  }
+
+  async getOrdersByStatus(status: string): Promise<OrderDto[]> {
+    return this.request<OrderDto[]>(`/orders/status/${status}`)
+  }
+
+  async getOrdersByPaymentStatus(paymentStatus: string): Promise<OrderDto[]> {
+    return this.request<OrderDto[]>(`/orders/payment-status/${paymentStatus}`)
+  }
+
+  async updateOrderStatus(id: string, status: string): Promise<OrderDto> {
+    return this.request<OrderDto>(`/orders/${id}/status?status=${status}`, {
+      method: 'PATCH',
+    })
+  }
+
+  async updateOrderPaymentStatus(id: string, paymentStatus: string): Promise<OrderDto> {
+    return this.request<OrderDto>(`/orders/${id}/payment-status?paymentStatus=${paymentStatus}`, {
+      method: 'PATCH',
+    })
+  }
+
+  async searchOrders(params: {
+    orderId?: string
+    orderNumber?: string
+    clientName?: string
+    email?: string
+    documentNumber?: string
+    phoneNumber?: string
+  }): Promise<OrderDto[]> {
+    const queryParams = new URLSearchParams()
+    if (params.orderId) queryParams.append('orderId', params.orderId)
+    if (params.orderNumber) queryParams.append('orderNumber', params.orderNumber)
+    if (params.clientName) queryParams.append('clientName', params.clientName)
+    if (params.email) queryParams.append('email', params.email)
+    if (params.documentNumber) queryParams.append('documentNumber', params.documentNumber)
+    if (params.phoneNumber) queryParams.append('phoneNumber', params.phoneNumber)
+    
+    const queryString = queryParams.toString()
+    const endpoint = queryString ? `/orders/search?${queryString}` : '/orders/search'
+    return this.request<OrderDto[]>(endpoint)
+  }
+
+  async getOrdersByDateRange(startDate: string, endDate: string): Promise<OrderDto[]> {
+    return this.request<OrderDto[]>(`/orders/date-range?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)
   }
 }
 

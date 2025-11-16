@@ -24,7 +24,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { showToast } = useToast()
   const resolvedParams = use(params)
   const { product, loading, error } = useProductDetail(resolvedParams.slug)
-  
+
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<any>(null)
   const [selectedSize, setSelectedSize] = useState("")
@@ -51,13 +51,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const productImages = useMemo(() => {
     if (!product) return []
     const mainImages = cleanImageArray(product.images)
-    
+
     // Agregar imágenes de variantes que tengan imageUrl
     const variantImages = product.variants
       ?.map(v => v.imageUrl)
       .filter((url): url is string => !!url && url.trim() !== '')
       .map(url => url.trim()) || []
-    
+
     // Combinar imágenes principales con imágenes de variantes, evitando duplicados
     const allImages = [...mainImages]
     variantImages.forEach(img => {
@@ -65,7 +65,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         allImages.push(img)
       }
     })
-    
+
     return allImages
   }, [product])
 
@@ -118,6 +118,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     addItem({
       id: product.id,
       name: product.name,
+      variantId: variantToAdd?.id || product.id, // Usar el ID de la variante o el del producto como fallback
       price: currentPrice,
       image: productImages[selectedImage] || productImages[0] || `/productos/${product.name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
       color: variantToAdd?.color || availableColors[0]?.name || "Sin especificar",
@@ -130,9 +131,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const decrementQuantity = () => setQuantity(q => Math.max(q - 1, 1))
 
   const handleVariantChange = (color: string, size?: string) => {
-    const variant = product?.variants.find(v => 
-      v.color === color && (!size || v.size === size)
-    )
+    const variant = product?.variants.find(v => {
+      const colorMatch = v.color === color
+      const sizeMatch = !size || size === '' || v.size === size
+      return colorMatch && sizeMatch
+    })
     setSelectedVariant(variant || null)
   }
 
@@ -214,9 +217,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
-                    className={`aspect-square bg-[#1B1715] rounded-lg overflow-hidden border-2 transition-colors ${
-                      selectedImage === idx ? "border-[#E5AB4A]" : "border-transparent hover:border-gray-700"
-                    }`}
+                    className={`aspect-square bg-[#1B1715] rounded-lg overflow-hidden border-2 transition-colors ${selectedImage === idx ? "border-[#E5AB4A]" : "border-transparent hover:border-gray-700"
+                      }`}
                   >
                     <OptimizedImage
                       src={img}
@@ -265,112 +267,111 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </div>
               )}
 
-            {/* Color Selector */}
-            {availableColors.length > 0 && (
-              <div className="mb-6">
-                <label className="mb-4 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                  Color de montura
-                </label>
-                <div className="flex gap-2 mb-3">
-                  {availableColors.map((color, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        handleVariantChange(color.name, selectedSize)
-                      }}
-                      className={`w-10 h-10 rounded-full border-2 transition-all ${
-                        selectedVariant?.color === color.name ? "border-[#E5AB4A] scale-105" : "border-gray-700"
-                      }`}
-                      style={{ backgroundColor: color.value }}
-                      title={color.name}
-                    />
-                  ))}
+              {/* Color Selector */}
+              {availableColors.length > 0 && (
+                <div className="mb-6">
+                  <label className="mb-4 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
+                    Color de montura
+                  </label>
+                  <div className="flex gap-2 mb-3">
+                    {availableColors.map((color, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          handleVariantChange(color.name, selectedSize)
+                        }}
+                        className={`w-10 h-10 rounded-full border-2 transition-all ${selectedVariant?.color === color.name ? "border-[#E5AB4A] scale-105" : "border-gray-700"
+                          }`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                  <p style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
+                    Color: {selectedVariant?.color || availableColors[0]?.name || "Sin especificar"}
+                  </p>
                 </div>
-                <p style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                  Color: {selectedVariant?.color || availableColors[0]?.name || "Sin especificar"}
-                </p>
-              </div>
-            )}
+              )}
 
-            {/* Size Selector */}
-            {availableSizes.length > 0 && (
-              <div className="mb-6">
-                <div className="mb-3 flex items-baseline gap-1" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                  <span>Tallas</span>
-                  <button 
-                    onClick={() => setShowSizeTable(true)} 
-                    className="text-[#C9B8A5] hover:text-[#E5AB4A] transition-colors"
-                    style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px' }}
+              {/* Size Selector */}
+              {availableSizes.length > 0 && (
+                <div className="mb-6">
+                  <div className="mb-3 flex items-baseline gap-1" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
+                    <span>Tallas</span>
+                    <button
+                      onClick={() => setShowSizeTable(true)}
+                      className="text-[#C9B8A5] hover:text-[#E5AB4A] transition-colors"
+                      style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px' }}
+                    >
+                      (ver tabla)
+                    </button>
+                  </div>
+                  <SelectCustom
+                    name="size"
+                    value={selectedSize}
+                    onChange={(e) => {
+                      setSelectedSize(e.target.value)
+                      handleVariantChange(selectedVariant?.color || availableColors[0]?.name || '', e.target.value)
+                    }}
+                    options={[
+                      { value: "", label: "Seleccionar talla" },
+                      ...availableSizes.map(size => ({ value: size || "", label: size || "" }))
+                    ]}
+                  />
+                  <p className="mt-2" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
+                    Selecciona una talla para ver el rango recomendable.
+                  </p>
+                </div>
+              )}
+
+              {/* Quantity */}
+              <div className="mb-8">
+                <label className="mb-3 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
+                  Cantidad
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={decrementQuantity}
+                    className="w-10 h-10 border border-gray-700 rounded-xl flex items-center justify-center text-white hover:bg-[#2A2421] transition-colors"
+                    style={{ backgroundColor: '#2A2421' }}
                   >
-                    (ver tabla)
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    type="text"
+                    value={quantity}
+                    readOnly
+                    className="w-20 h-10 text-center bg-[#1B1715] border border-gray-700 rounded-xl text-white text-base font-medium"
+                  />
+                  <button
+                    onClick={incrementQuantity}
+                    className="w-10 h-10 border border-gray-700 rounded-xl flex items-center justify-center text-white hover:bg-[#2A2421] transition-colors"
+                    style={{ backgroundColor: '#2A2421' }}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <SelectCustom
-                  name="size"
-                  value={selectedSize}
-                  onChange={(e) => {
-                    setSelectedSize(e.target.value)
-                    handleVariantChange(selectedVariant?.color || availableColors[0]?.name || '', e.target.value)
-                  }}
-                  options={[
-                    { value: "", label: "Seleccionar talla" },
-                    ...availableSizes.map(size => ({ value: size || "", label: size || "" }))
-                  ]}
-                />
-                <p className="mt-2" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                  Selecciona una talla para ver el rango recomendable.
-                </p>
               </div>
-            )}
 
-            {/* Quantity */}
-            <div className="mb-8">
-              <label className="mb-3 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                Cantidad
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={decrementQuantity}
-                  className="w-10 h-10 border border-gray-700 rounded-xl flex items-center justify-center text-white hover:bg-[#2A2421] transition-colors"
-                  style={{ backgroundColor: '#2A2421' }}
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-8">
+                <Button
+                  onClick={handleAddToCart}
+                  className="flex-1 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white py-3 flex items-center justify-center gap-2"
                 >
-                  <Minus className="w-3.5 h-3.5" />
-                </button>
-                <input
-                  type="text"
-                  value={quantity}
-                  readOnly
-                  className="w-20 h-10 text-center bg-[#1B1715] border border-gray-700 rounded-xl text-white text-base font-medium"
-                />
-                <button
-                  onClick={incrementQuantity}
-                  className="w-10 h-10 border border-gray-700 rounded-xl flex items-center justify-center text-white hover:bg-[#2A2421] transition-colors"
-                  style={{ backgroundColor: '#2A2421' }}
+                  <ShoppingCart className="w-5 h-5" />
+                  Añadir al carrito
+                </Button>
+                <Button
+                  className="flex-1 hover:bg-[#E5AB4A]/90 py-3 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: '#E5AB4A', color: '#0F0B0A' }}
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  Cotizar
+                </Button>
               </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-8">
-              <Button
-                onClick={handleAddToCart}
-                className="flex-1 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white py-3 flex items-center justify-center gap-2"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Añadir al carrito
-              </Button>
-              <Button
-                className="flex-1 hover:bg-[#E5AB4A]/90 py-3 flex items-center justify-center gap-2"
-                style={{ backgroundColor: '#E5AB4A', color: '#0F0B0A' }}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                Cotizar
-              </Button>
-            </div>
 
               {/* Product Meta */}
               <div className="space-y-1">
@@ -423,11 +424,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
       {/* Modal de tabla de tallas */}
       {showSizeTable && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200"
           onClick={() => setShowSizeTable(false)}
         >
-          <div 
+          <div
             className="bg-[#1B1715] rounded-xl p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
