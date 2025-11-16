@@ -16,8 +16,7 @@ interface VariantForm {
   id: string
   sku: string
   color: string
-  size: string
-  type: string
+  sizes: string[]  // Array de tallas
   price: string
   stock: string
   image: File | null
@@ -48,7 +47,6 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
   // Attribute options
   const [colorOptions, setColorOptions] = useState<string[]>([])
   const [sizeOptions, setSizeOptions] = useState<string[]>([])
-  const [typeOptions, setTypeOptions] = useState<string[]>([])
 
   // Loading state
   const [loading, setLoading] = useState(false)
@@ -57,15 +55,13 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [colors, sizes, types] = await Promise.all([
+        const [colors, sizes] = await Promise.all([
           api.getAttributeOptions('color'),
           api.getAttributeOptions('size'),
-          api.getAttributeOptions('type'),
         ])
         
         setColorOptions(colors.map(c => c.value))
         setSizeOptions(sizes.map(s => s.value))
-        setTypeOptions(types.map(t => t.value))
       } catch (error) {
         console.error('Error loading attribute options:', error)
       }
@@ -138,14 +134,25 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
       id: Date.now().toString(),
       sku: '',
       color: '',
-      size: '',
-      type: '',
+      sizes: [],  // Array vacío de tallas
       price: '',
       stock: '0',
       image: null,
       imagePreview: null,
     }
     setVariants(prev => [...prev, newVariant])
+  }
+
+  const toggleSize = (variantId: string, size: string) => {
+    setVariants(prev => prev.map(variant => {
+      if (variant.id === variantId) {
+        const sizes = variant.sizes.includes(size)
+          ? variant.sizes.filter(s => s !== size)
+          : [...variant.sizes, size]
+        return { ...variant, sizes }
+      }
+      return variant
+    }))
   }
 
   const updateVariant = (id: string, field: string, value: any) => {
@@ -167,13 +174,12 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
     reader.readAsDataURL(file)
   }
 
-  const generateVariantSku = (variant: VariantForm) => {
+  const generateVariantSku = (variant: VariantForm, size: string) => {
     const productPrefix = formData.name.substring(0, 3).toUpperCase()
     const color = variant.color ? variant.color.substring(0, 4).toUpperCase() : 'GEN'
-    const size = variant.size ? variant.size.replace(/[^a-zA-Z0-9]/g, '') : ''
-    const type = variant.type ? variant.type.substring(0, 3).toUpperCase() : ''
+    const sizeClean = size ? size.replace(/[^a-zA-Z0-9]/g, '') : ''
     
-    return `${productPrefix}-${color}${size ? '-' + size : ''}${type ? '-' + type : ''}`
+    return `${productPrefix}-${color}${sizeClean ? '-' + sizeClean : ''}`
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -191,6 +197,13 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
 
     if (variants.length === 0) {
       showToast('Por favor agrega al menos una variante', 'error')
+      return
+    }
+
+    // Validar que todas las variantes tengan al menos una talla seleccionada
+    const variantsWithoutSizes = variants.filter(v => v.sizes.length === 0)
+    if (variantsWithoutSizes.length > 0) {
+      showToast('Todas las variantes deben tener al menos una talla seleccionada', 'error')
       return
     }
 
@@ -217,23 +230,65 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
       // Create product with images
       const createdProduct = await api.createProductWithImages(productData, productImages)
 
-      // Create variants
+      // Create variants - Expandir cada variante por sus tallas
       for (const variant of variants) {
-        const variantData = {
-          productId: createdProduct.id,
-          sku: generateVariantSku(variant),
-          color: variant.color || undefined,
-          size: variant.size || undefined,
-          type: variant.type || undefined,
-          price: parseFloat(variant.price.replace(/[^\d.]/g, '')),
-          stock: parseInt(variant.stock) || 0,
-          isActive: true,
-        }
-
+        console.log('🔄 Procesando variante:', {
+          color: variant.color,
+          sizes: variant.sizes,
+          hasImage: !!variant.image,
+          imageName: variant.image?.name
+        })
+        
+        // Subir la imagen UNA SOLA VEZ para todas las tallas de esta variante
+        let sharedImageUrl: string | undefined = undefined
+        
         if (variant.image) {
-          await api.createVariantWithImage(variantData, variant.image)
+          // Crear la primera variante con imagen para obtener la URL
+          const firstSize = variant.sizes[0]
+          const firstVariantData = {
+            productId: createdProduct.id,
+            sku: generateVariantSku(variant, firstSize),
+            color: variant.color || undefined,
+            size: firstSize || undefined,
+            price: parseFloat(variant.price.replace(/[^\d.]/g, '')),
+            stock: parseInt(variant.stock) || 0,
+            isActive: true,
+          }
+          
+          const createdVariant = await api.createVariantWithImage(firstVariantData, variant.image)
+          sharedImageUrl = createdVariant.imageUrl
+          
+          // Crear el resto de variantes reutilizando la misma URL de imagen
+          for (let i = 1; i < variant.sizes.length; i++) {
+            const size = variant.sizes[i]
+            const variantData = {
+              productId: createdProduct.id,
+              sku: generateVariantSku(variant, size),
+              color: variant.color || undefined,
+              size: size || undefined,
+              price: parseFloat(variant.price.replace(/[^\d.]/g, '')),
+              stock: parseInt(variant.stock) || 0,
+              isActive: true,
+              imageUrl: sharedImageUrl, // Reutilizar la misma URL
+            }
+            
+            await api.createVariant(variantData)
+          }
         } else {
-          await api.createVariant(variantData)
+          // Si no hay imagen, crear todas las variantes sin imagen
+          for (const size of variant.sizes) {
+            const variantData = {
+              productId: createdProduct.id,
+              sku: generateVariantSku(variant, size),
+              color: variant.color || undefined,
+              size: size || undefined,
+              price: parseFloat(variant.price.replace(/[^\d.]/g, '')),
+              stock: parseInt(variant.stock) || 0,
+              isActive: true,
+            }
+            
+            await api.createVariant(variantData)
+          }
         }
       }
 
@@ -429,32 +484,33 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Talla</label>
-                    <select
-                      value={variant.size}
-                      onChange={(e) => updateVariant(variant.id, 'size', e.target.value)}
-                      className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded px-3 py-2 text-white focus:outline-none focus:border-[#E5AB4A]"
-                    >
-                      <option value="">Seleccionar talla</option>
+                  <div className="col-span-full">
+                    <label className="block text-gray-400 text-sm mb-3">Tallas (selecciona todas las que apliquen)</label>
+                    <div className="flex flex-wrap gap-2">
                       {sizeOptions.map(size => (
-                        <option key={size} value={size}>{size}</option>
+                        <label
+                          key={size}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 cursor-pointer transition-all ${
+                            variant.sizes.includes(size)
+                              ? 'bg-[#E5AB4A] border-[#E5AB4A] text-[#0F0B0A]'
+                              : 'bg-[#1A1311] border-[#2a2a2a] text-gray-300 hover:border-[#E5AB4A]'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={variant.sizes.includes(size)}
+                            onChange={() => toggleSize(variant.id, size)}
+                            className="hidden"
+                          />
+                          <span className="font-medium">{size}</span>
+                        </label>
                       ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Tipo</label>
-                    <select
-                      value={variant.type}
-                      onChange={(e) => updateVariant(variant.id, 'type', e.target.value)}
-                      className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded px-3 py-2 text-white focus:outline-none focus:border-[#E5AB4A]"
-                    >
-                      <option value="">Seleccionar tipo</option>
-                      {typeOptions.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
+                    </div>
+                    {variant.sizes.length > 0 && (
+                      <p className="text-[#E5AB4A] text-sm mt-2">
+                        ✨ Se crearán {variant.sizes.length} variante{variant.sizes.length !== 1 ? 's' : ''} con estas tallas
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -483,7 +539,7 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
                 </div>
 
                 {/* Variant Image */}
-                <div>
+                <div className="col-span-full">
                   <label className="block text-gray-400 text-sm mb-2">Imagen Específica de la Variante*</label>
                   <div className="flex items-center gap-4">
                     {variant.imagePreview ? (
@@ -528,11 +584,31 @@ export function ProductForm({ onClose, onSuccess }: ProductFormProps) {
                         {variant.imagePreview ? 'Cambiar Imagen' : 'Subir Imagen'}
                       </label>
                       <p className="text-gray-500 text-xs mt-1">
-                        Imagen específica para esta variante (obligatoria)
+                        Esta imagen se usará para todas las tallas de esta variante
                       </p>
                     </div>
                   </div>
                 </div>
+
+                {/* Preview de variantes que se crearán */}
+                {variant.sizes.length > 0 && variant.color && (
+                  <div className="col-span-full mt-2 p-3 bg-[#2a2a2a]/50 border border-[#3a3a3a] rounded-lg">
+                    <p className="text-gray-400 text-sm mb-2 font-medium">Vista previa de variantes a crear:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {variant.sizes.map(size => (
+                        <div key={size} className="flex items-center gap-2 text-sm text-gray-300">
+                          <span className="text-[#E5AB4A]">•</span>
+                          <span className="font-medium">{variant.color}</span>
+                          <span className="text-gray-500">+</span>
+                          <span className="font-medium">{size}</span>
+                          <span className="text-gray-500 text-xs ml-auto">
+                            SKU: {generateVariantSku(variant, size)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
 

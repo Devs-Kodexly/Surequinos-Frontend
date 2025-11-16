@@ -16,9 +16,16 @@ export interface Category {
 export interface Variant {
   id: string
   sku: string
+  attributes?: {
+    color?: string
+    color_hex?: string
+    size?: string
+    material?: string
+    [key: string]: any  // Permite cualquier atributo adicional
+  }
+  // Campos de compatibilidad (extraídos de attributes)
   color?: string
   size?: string
-  type?: string
   price: number
   stock: number
   imageUrl?: string
@@ -60,7 +67,6 @@ export interface CreateVariantRequest {
   sku: string
   color?: string
   size?: string
-  type?: string
   price: number
   stock?: number
   isActive?: boolean
@@ -327,8 +333,7 @@ class ApiClient {
     // For now, return static data
     const options: Record<string, string[]> = {
       color: ['Roble', 'Chocolate', 'Negro', 'Blanco', 'Rojo', 'Azul', 'Verde'],
-      size: ['12"', '12.5"', '13"', '13.5"', '14"', '14.5"', '15"', '15.5"', '16"', '17"'],
-      type: ['Americana', 'Trenzada', 'Nacional', 'Sencillo', 'De Lujo', 'Timbiano']
+      size: ['12"', '12.5"', '13"', '13.5"', '14"', '14.5"', '15"', '15.5"', '16"', '17"']
     }
     
     return (options[attributeName] || []).map((value, index) => ({

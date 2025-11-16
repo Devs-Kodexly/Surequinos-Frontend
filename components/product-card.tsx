@@ -27,7 +27,6 @@ interface ProductCardProps {
     sku: string
     color?: string
     size?: string
-    type?: string
     price: number
     stock: number
     imageUrl?: string
@@ -79,13 +78,18 @@ export function ProductCard({
     ? formatPrice(selectedVariant.price)
     : price
 
-  // Combinar todas las imágenes: primero las del producto, luego las de variantes
-  const variantImages = variants.map(v => cleanImageUrl(v.imageUrl)).filter((url): url is string => !!url)
-  const allImages = [...productImages, ...variantImages]
+  // Determinar la imagen actual a mostrar
+  // Prioridad: 1) Imagen de variante seleccionada, 2) Imagen de portada del producto
+  const currentImage = useMemo(() => {
+    if (selectedVariant?.imageUrl) {
+      return cleanImageUrl(selectedVariant.imageUrl)
+    }
+    // Mostrar siempre la imagen de portada del producto cuando no hay variante seleccionada
+    return productImages[0] || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`
+  }, [selectedVariant, productImages, title])
 
-  const currentImage = selectedVariant?.imageUrl
-    ? cleanImageUrl(selectedVariant.imageUrl)
-    : allImages[currentImageIndex] || productImages[0]
+  // Todas las imágenes disponibles para navegación (solo imágenes del producto)
+  const allImages = productImages
 
   // Estados para talla y color
   const [selectedSize, setSelectedSize] = useState<string>(preselectedSize || "")
@@ -93,9 +97,14 @@ export function ProductCard({
   const [showSizeTable, setShowSizeTable] = useState(false)
 
   // Extraer colores únicos de las variantes del backend
+  // Si hay talla seleccionada, filtrar solo los colores disponibles para esa talla
   const availableColors = useMemo(() => {
     const uniqueColors = new Set<string>()
     variants.forEach(variant => {
+      // Si hay talla seleccionada, solo mostrar colores de esa talla
+      if (selectedSize && variant.size !== selectedSize) {
+        return
+      }
       if (variant.color) {
         uniqueColors.add(variant.color)
       }
@@ -121,12 +130,25 @@ export function ProductCard({
       name: color,
       hex: colorMap[color] || "#6B7280" // Color gris por defecto si no está en el mapa
     }))
-  }, [variants])
+  }, [variants, selectedSize])
+  
+  // Verificar disponibilidad de cada color
+  const getColorAvailability = (colorName: string) => {
+    return variants.some(v => {
+      const sizeMatch = !selectedSize || v.size === selectedSize
+      return v.color === colorName && sizeMatch && v.available
+    })
+  }
 
-  // Extraer tallas únicas de las variantes del backend
-  const availableSizes = useMemo(() => {
+  // Extraer todas las tallas únicas de las variantes del backend
+  // Si hay un color seleccionado, filtrar solo las tallas disponibles para ese color
+  const allSizes = useMemo(() => {
     const uniqueSizes = new Set<string>()
     variants.forEach(variant => {
+      // Si hay color seleccionado, solo mostrar tallas de ese color
+      if (selectedColor && variant.color !== selectedColor) {
+        return
+      }
       if (variant.size) {
         uniqueSizes.add(variant.size)
       }
@@ -137,32 +159,58 @@ export function ProductCard({
       const numB = parseFloat(b.replace(/[^0-9.]/g, ''))
       return numA - numB
     })
-  }, [variants])
+  }, [variants, selectedColor])
 
-  // Extraer tipos únicos de las variantes del backend
-  const availableTypes = useMemo(() => {
-    const uniqueTypes = new Set<string>()
-    variants.forEach(variant => {
-      if (variant.type) {
-        uniqueTypes.add(variant.type)
-      }
+  // Verificar disponibilidad de cada talla
+  const getSizeAvailability = (size: string) => {
+    const hasAvailable = variants.some(v => {
+      const colorMatch = !selectedColor || v.color === selectedColor
+      const isAvailable = v.size === size && colorMatch && v.available
+      return isAvailable
     })
-    return Array.from(uniqueTypes)
-  }, [variants])
+    return hasAvailable
+  }
 
-  // Estado para tipo
-  const [selectedType, setSelectedType] = useState<string>("")
 
-  // Efecto para actualizar la variante seleccionada cuando cambian color, talla o tipo
+
+  // Efecto para resetear selecciones cuando cambian los filtros
+  useEffect(() => {
+    // Si se selecciona un color, verificar si la talla sigue disponible
+    if (selectedColor) {
+      const sizeAvailable = variants.some(v => 
+        v.color === selectedColor && v.size === selectedSize && v.available
+      )
+      if (!sizeAvailable && selectedSize) {
+        setSelectedSize("")
+      }
+    }
+    
+    // Si se selecciona una talla, verificar si el color sigue disponible
+    if (selectedSize) {
+      const colorAvailable = variants.some(v => 
+        v.size === selectedSize && v.color === selectedColor && v.available
+      )
+      if (!colorAvailable && selectedColor) {
+        setSelectedColor("")
+      }
+    }
+  }, [selectedColor, selectedSize, variants])
+
+  // Efecto para actualizar la variante seleccionada cuando cambian color o talla
   useEffect(() => {
     if (variants.length === 0) return
+
+    // Si no hay ninguna selección, no mostrar variante
+    if (!selectedColor && !selectedSize) {
+      setSelectedVariant(null)
+      return
+    }
 
     // Buscar variante que coincida con las selecciones actuales
     const matchingVariant = variants.find(v => {
       const colorMatch = !selectedColor || v.color === selectedColor
       const sizeMatch = !selectedSize || v.size === selectedSize
-      const typeMatch = !selectedType || v.type === selectedType
-      return colorMatch && sizeMatch && typeMatch && v.available
+      return colorMatch && sizeMatch && v.available
     })
 
     if (matchingVariant) {
@@ -172,23 +220,18 @@ export function ProductCard({
       const partialMatch = variants.find(v => {
         const hasMatch = 
           (selectedColor && v.color === selectedColor) ||
-          (selectedSize && v.size === selectedSize) ||
-          (selectedType && v.type === selectedType)
+          (selectedSize && v.size === selectedSize)
         return hasMatch && v.available
       })
       setSelectedVariant(partialMatch || null)
     }
-  }, [selectedColor, selectedSize, selectedType, variants])
+  }, [selectedColor, selectedSize, variants])
 
-  // Inicializar selecciones con la primera variante disponible
+  // Inicializar selecciones SOLO si hay preselección (para productos de oferta)
   useEffect(() => {
-    if (variants.length > 0 && !preselectedColor && !preselectedSize) {
-      const firstAvailable = variants.find(v => v.available) || variants[0]
-      if (firstAvailable) {
-        if (firstAvailable.color && !selectedColor) setSelectedColor(firstAvailable.color)
-        if (firstAvailable.size && !selectedSize) setSelectedSize(firstAvailable.size)
-        if (firstAvailable.type && !selectedType) setSelectedType(firstAvailable.type)
-      }
+    if (variants.length > 0 && (preselectedColor || preselectedSize)) {
+      if (preselectedColor) setSelectedColor(preselectedColor)
+      if (preselectedSize) setSelectedSize(preselectedSize)
     }
   }, [variants, preselectedColor, preselectedSize])
 
@@ -216,7 +259,6 @@ export function ProductCard({
       image: currentImage || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`,
       color: variantToAdd?.color || selectedColor || "Sin especificar",
       size: variantToAdd?.size,
-      type: variantToAdd?.type,
     })
 
     // Mostrar notificación de éxito
@@ -228,22 +270,20 @@ export function ProductCard({
   }
 
   const nextImage = () => {
-    if (allImages.length > 1 && !isTransitioning) {
+    if (allImages.length > 1 && !isTransitioning && !selectedVariant) {
       setIsTransitioning(true)
       setTimeout(() => {
         setCurrentImageIndex((prev) => (prev + 1) % allImages.length)
-        setSelectedVariant(null) // Reset variant selection when navigating manually
         setTimeout(() => setIsTransitioning(false), 50)
       }, 100)
     }
   }
 
   const prevImage = () => {
-    if (allImages.length > 1 && !isTransitioning) {
+    if (allImages.length > 1 && !isTransitioning && !selectedVariant) {
       setIsTransitioning(true)
       setTimeout(() => {
         setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)
-        setSelectedVariant(null) // Reset variant selection when navigating manually
         setTimeout(() => setIsTransitioning(false), 50)
       }, 100)
     }
@@ -271,19 +311,6 @@ export function ProductCard({
   return (
     <div className="bg-[#1B1715] rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full">
       <div className="relative aspect-[4/3] bg-muted group">
-        {/* Badge izquierdo */}
-        {getBadge() && (
-          <span className="absolute top-4 left-4 px-4 py-2 rounded-full text-sm border-2 z-10 bg-black/40 backdrop-blur-sm border-[#E5AB4A] text-[#E5AB4A]">
-            {getBadge()}
-          </span>
-        )}
-
-        {/* Badge derecho - stock */}
-        {getStockDisplay() && (
-          <span className="absolute top-4 right-4 px-4 py-2 rounded-full text-sm border-2 z-10 bg-black/60 backdrop-blur-sm border-gray-600 text-white">
-            {getStockDisplay()}
-          </span>
-        )}
 
         <OptimizedImage
           src={currentImage}
@@ -363,7 +390,7 @@ export function ProductCard({
         </div>
 
         {/* Selector de Tallas */}
-        {availableSizes.length > 0 && (
+        {allSizes.length > 0 && (
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
               <label className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
@@ -394,19 +421,16 @@ export function ProductCard({
                   style={{ fontFamily: 'Inter' }}
                 >
                   <option value="">Seleccionar talla</option>
-                  {availableSizes.map((size) => {
-                    // Verificar si hay stock disponible para esta talla
-                    const hasStock = variants.some(v => 
-                      v.size === size && v.available
-                    )
+                  {allSizes.map((size) => {
+                    const isAvailable = getSizeAvailability(size)
                     return (
                       <option 
                         key={size} 
                         value={size} 
                         className="bg-[#2A2420]"
-                        disabled={!hasStock}
+                        disabled={!isAvailable}
                       >
-                        {size} {!hasStock ? '(Agotado)' : ''}
+                        {size} {!isAvailable ? '(Agotado)' : ''}
                       </option>
                     )
                   })}
@@ -414,14 +438,7 @@ export function ProductCard({
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
             )}
-            {!isSaleProduct && selectedSize && (
-              <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%] mt-2" style={{ fontFamily: 'Inter' }}>
-                {selectedVariant && selectedVariant.stock > 0 
-                  ? `${selectedVariant.stock} unidad${selectedVariant.stock !== 1 ? 'es' : ''} disponible${selectedVariant.stock !== 1 ? 's' : ''}`
-                  : 'Selecciona otras opciones para ver disponibilidad'
-                }
-              </p>
-            )}
+
           </div>
         )}
 
@@ -429,127 +446,48 @@ export function ProductCard({
         {availableColors.length > 0 && (
           <div className="mb-4">
             <label className="text-[#C9B8A5] font-normal text-[12px] leading-[100%] mb-3 block" style={{ fontFamily: 'Inter' }}>
-              Color
+              <span className="text-[#C9B8A5]">Color:</span>{selectedColor && <span className="text-white ml-1">{selectedColor}</span>}
             </label>
-            {isSaleProduct ? (
-              // Mostrar color preseleccionado sin permitir cambios
-              <>
-                <div className="flex gap-2 mb-3 flex-wrap">
-                  {availableColors.map((color) => (
-                    <div
-                      key={color.name}
-                      className={`w-7 h-7 rounded-full border-2 ${selectedColor === color.name
+            <div className="flex gap-2 flex-wrap">
+              {availableColors.map((color) => {
+                const hasStock = isSaleProduct ? selectedColor === color.name : getColorAvailability(color.name)
+                return (
+                  <button
+                    key={color.name}
+                    onClick={() => {
+                      if (!isSaleProduct && hasStock) {
+                        setSelectedColor(color.name)
+                        // Buscar una variante con este color para mostrar su imagen
+                        const variantWithColor = variants.find(v => {
+                          const sizeMatch = !selectedSize || v.size === selectedSize
+                          return v.color === color.name && sizeMatch && v.available
+                        })
+                        if (variantWithColor) {
+                          setSelectedVariant(variantWithColor)
+                        }
+                      }
+                    }}
+                    disabled={isSaleProduct || !hasStock}
+                    className={`w-7 h-7 rounded-full transition-all duration-200 border-2 ${
+                      selectedColor === color.name
                         ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715] border-white'
-                        : 'opacity-30 border-gray-600'
-                        }`}
-                      style={{ backgroundColor: color.hex }}
-                      aria-label={`Color ${color.name}`}
-                      title={color.name}
-                    />
-                  ))}
-                </div>
-                <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
-                  Color: <span className="text-white">{selectedColor}</span>
-                </p>
-              </>
-            ) : (
-              // Selector normal para productos de tienda
-              <>
-                <div className="flex gap-2 mb-3 flex-wrap">
-                  {availableColors.map((color) => {
-                    // Verificar si hay stock disponible para este color
-                    const hasStock = variants.some(v => 
-                      v.color === color.name && v.available
-                    )
-                    return (
-                      <button
-                        key={color.name}
-                        onClick={() => hasStock && setSelectedColor(color.name)}
-                        disabled={!hasStock}
-                        className={`w-7 h-7 rounded-full transition-all duration-200 border-2 ${
-                          selectedColor === color.name
-                            ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715] border-white'
-                            : hasStock 
-                              ? 'hover:scale-105 border-gray-600 hover:border-white' 
-                              : 'opacity-30 cursor-not-allowed border-gray-700'
-                        }`}
-                        style={{ backgroundColor: color.hex }}
-                        aria-label={`Color ${color.name}`}
-                        title={`${color.name}${!hasStock ? ' (Agotado)' : ''}`}
-                      />
-                    )
-                  })}
-                </div>
-                <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
-                  Color: <span className="text-white">{selectedColor || 'Selecciona un color'}</span>
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Selector de Tipo */}
-        {availableTypes.length > 0 && (
-          <div className="mb-4">
-            <label className="text-[#C9B8A5] font-normal text-[12px] leading-[100%] mb-2 block" style={{ fontFamily: 'Inter' }}>
-              Tipo
-            </label>
-            {isSaleProduct ? (
-              // Mostrar tipo preseleccionado sin permitir cambios
-              <div className="w-full bg-[#2A2420]/50 border border-gray-700/50 rounded-lg px-4 py-3 text-gray-400 text-sm cursor-not-allowed">
-                {selectedType || "No especificado"}
-              </div>
-            ) : (
-              // Selector normal para productos de tienda
-              <div className="relative">
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full bg-[#2A2420] border border-gray-700 rounded-lg px-4 py-3 pr-10 text-gray-300 text-sm appearance-none cursor-pointer focus:outline-none focus:border-[#AA3E11] transition-colors"
-                  style={{ fontFamily: 'Inter' }}
-                >
-                  <option value="">Seleccionar tipo</option>
-                  {availableTypes.map((type) => {
-                    // Verificar si hay stock disponible para este tipo
-                    const hasStock = variants.some(v => 
-                      v.type === type && v.available
-                    )
-                    return (
-                      <option 
-                        key={type} 
-                        value={type} 
-                        className="bg-[#2A2420]"
-                        disabled={!hasStock}
-                      >
-                        {type} {!hasStock ? '(Agotado)' : ''}
-                      </option>
-                    )
-                  })}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Información de la variante seleccionada */}
-        {selectedVariant && !isSaleProduct && (
-          <div className="mb-4 p-3 bg-[#2A2420]/50 border border-[#AA3E11]/30 rounded-lg">
-            <p className="text-[#E5AB4A] font-medium text-[13px] mb-1" style={{ fontFamily: 'Inter' }}>
-              Variante seleccionada:
-            </p>
-            <div className="text-[#C9B8A5] text-[12px] space-y-1" style={{ fontFamily: 'Inter' }}>
-              <p>SKU: <span className="text-white">{selectedVariant.sku}</span></p>
-              {selectedVariant.color && <p>Color: <span className="text-white">{selectedVariant.color}</span></p>}
-              {selectedVariant.size && <p>Talla: <span className="text-white">{selectedVariant.size}</span></p>}
-              {selectedVariant.type && <p>Tipo: <span className="text-white">{selectedVariant.type}</span></p>}
-              <p>Precio: <span className="text-[#F0B676] font-bold">{formatPrice(selectedVariant.price)}</span></p>
-              <p>Stock: <span className={`font-medium ${selectedVariant.stock <= 3 ? 'text-red-400' : 'text-green-400'}`}>
-                {selectedVariant.stock} unidad{selectedVariant.stock !== 1 ? 'es' : ''}
-              </span></p>
+                        : hasStock 
+                          ? 'hover:scale-105 border-gray-600 hover:border-white' 
+                          : 'opacity-30 cursor-not-allowed border-gray-700'
+                    }`}
+                    style={{ backgroundColor: color.hex }}
+                    aria-label={`Color ${color.name}`}
+                    title={`${color.name}${!hasStock ? ' (Agotado)' : ''}`}
+                  />
+                )
+              })}
             </div>
           </div>
         )}
+
+
+
+
 
         {/* Botones */}
         <div className="flex gap-2 flex-col sm:flex-row">
