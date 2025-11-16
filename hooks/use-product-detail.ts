@@ -13,11 +13,12 @@ export function useProductDetail(slug: string) {
       try {
         setLoading(true)
         setError(null)
-        const data = await api.getProductBySlug(slug)
-        setProduct(data)
+        
+        const productData = await api.getProductBySlug(slug)
+        setProduct(productData)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading product')
-        console.error('Error fetching product:', err)
+        setProduct(null)
       } finally {
         setLoading(false)
       }
@@ -30,5 +31,22 @@ export function useProductDetail(slug: string) {
     product,
     loading,
     error,
+    refetch: () => {
+      if (slug) {
+        const fetchProduct = async () => {
+          try {
+            setLoading(true)
+            setError(null)
+            const productData = await api.getProductBySlug(slug)
+            setProduct(productData)
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Error loading product')
+          } finally {
+            setLoading(false)
+          }
+        }
+        fetchProduct()
+      }
+    }
   }
 }
