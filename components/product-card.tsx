@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { OptimizedImage } from "@/components/optimized-image"
 import { useCart } from "@/lib/cart-context"
@@ -89,18 +89,108 @@ export function ProductCard({
 
   // Estados para talla y color
   const [selectedSize, setSelectedSize] = useState<string>(preselectedSize || "")
-  const [selectedColor, setSelectedColor] = useState<string>(preselectedColor || "Roble")
+  const [selectedColor, setSelectedColor] = useState<string>(preselectedColor || "")
   const [showSizeTable, setShowSizeTable] = useState(false)
 
-  // Colores disponibles (hardcoded por ahora)
-  const availableColors = [
-    { name: "Roble", hex: "#C4622D" },
-    { name: "Café", hex: "#8B5A3C" },
-    { name: "Negro", hex: "#1A1A1A" }
-  ]
+  // Extraer colores únicos de las variantes del backend
+  const availableColors = useMemo(() => {
+    const uniqueColors = new Set<string>()
+    variants.forEach(variant => {
+      if (variant.color) {
+        uniqueColors.add(variant.color)
+      }
+    })
+    
+    // Mapeo de colores a valores hexadecimales
+    const colorMap: Record<string, string> = {
+      "Roble": "#C4622D",
+      "Café": "#8B5A3C",
+      "Chocolate": "#8B5A3C",
+      "Negro": "#1A1A1A",
+      "Blanco": "#F5F5F5",
+      "Rojo": "#DC2626",
+      "Azul": "#2563EB",
+      "Verde": "#16A34A",
+      "Amarillo": "#EAB308",
+      "Naranja": "#EA580C",
+      "Gris": "#6B7280",
+      "Marrón": "#92400E",
+    }
+    
+    return Array.from(uniqueColors).map(color => ({
+      name: color,
+      hex: colorMap[color] || "#6B7280" // Color gris por defecto si no está en el mapa
+    }))
+  }, [variants])
 
-  // Tallas disponibles (hardcoded por ahora)
-  const availableSizes = ['12"', '13"', '14"', '15"', '16"', '17"']
+  // Extraer tallas únicas de las variantes del backend
+  const availableSizes = useMemo(() => {
+    const uniqueSizes = new Set<string>()
+    variants.forEach(variant => {
+      if (variant.size) {
+        uniqueSizes.add(variant.size)
+      }
+    })
+    return Array.from(uniqueSizes).sort((a, b) => {
+      // Ordenar numéricamente si son tallas con pulgadas
+      const numA = parseFloat(a.replace(/[^0-9.]/g, ''))
+      const numB = parseFloat(b.replace(/[^0-9.]/g, ''))
+      return numA - numB
+    })
+  }, [variants])
+
+  // Extraer tipos únicos de las variantes del backend
+  const availableTypes = useMemo(() => {
+    const uniqueTypes = new Set<string>()
+    variants.forEach(variant => {
+      if (variant.type) {
+        uniqueTypes.add(variant.type)
+      }
+    })
+    return Array.from(uniqueTypes)
+  }, [variants])
+
+  // Estado para tipo
+  const [selectedType, setSelectedType] = useState<string>("")
+
+  // Efecto para actualizar la variante seleccionada cuando cambian color, talla o tipo
+  useEffect(() => {
+    if (variants.length === 0) return
+
+    // Buscar variante que coincida con las selecciones actuales
+    const matchingVariant = variants.find(v => {
+      const colorMatch = !selectedColor || v.color === selectedColor
+      const sizeMatch = !selectedSize || v.size === selectedSize
+      const typeMatch = !selectedType || v.type === selectedType
+      return colorMatch && sizeMatch && typeMatch && v.available
+    })
+
+    if (matchingVariant) {
+      setSelectedVariant(matchingVariant)
+    } else {
+      // Si no hay coincidencia exacta, buscar la primera disponible con al menos un atributo coincidente
+      const partialMatch = variants.find(v => {
+        const hasMatch = 
+          (selectedColor && v.color === selectedColor) ||
+          (selectedSize && v.size === selectedSize) ||
+          (selectedType && v.type === selectedType)
+        return hasMatch && v.available
+      })
+      setSelectedVariant(partialMatch || null)
+    }
+  }, [selectedColor, selectedSize, selectedType, variants])
+
+  // Inicializar selecciones con la primera variante disponible
+  useEffect(() => {
+    if (variants.length > 0 && !preselectedColor && !preselectedSize) {
+      const firstAvailable = variants.find(v => v.available) || variants[0]
+      if (firstAvailable) {
+        if (firstAvailable.color && !selectedColor) setSelectedColor(firstAvailable.color)
+        if (firstAvailable.size && !selectedSize) setSelectedSize(firstAvailable.size)
+        if (firstAvailable.type && !selectedType) setSelectedType(firstAvailable.type)
+      }
+    }
+  }, [variants, preselectedColor, preselectedSize])
 
   const handleAddToCart = () => {
     // Usar variante seleccionada o la primera disponible
@@ -112,6 +202,12 @@ export function ProductCard({
       return
     }
 
+    // Validar que la variante esté disponible
+    if (!variantToAdd.available) {
+      showToast("Esta variante no está disponible", "error", 3000)
+      return
+    }
+
     addItem({
       id: variantToAdd.id, // Usar el variantId como id para compatibilidad
       variantId: variantToAdd.id, // ID de la variante
@@ -119,6 +215,8 @@ export function ProductCard({
       price: currentPrice,
       image: currentImage || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`,
       color: variantToAdd?.color || selectedColor || "Sin especificar",
+      size: variantToAdd?.size,
+      type: variantToAdd?.type,
     })
 
     // Mostrar notificación de éxito
@@ -265,100 +363,193 @@ export function ProductCard({
         </div>
 
         {/* Selector de Tallas */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
-              Tallas
-            </label>
-            {!isSaleProduct && (
-              <button
-                onClick={() => setShowSizeTable(true)}
-                className="text-[#C9B8A5] hover:text-[#E5AB4A] font-normal text-[12px] leading-[100%] transition-colors"
-                style={{ fontFamily: 'Inter' }}
-              >
-                (Ver tabla)
-              </button>
+        {availableSizes.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
+                Tallas
+              </label>
+              {!isSaleProduct && (
+                <button
+                  onClick={() => setShowSizeTable(true)}
+                  className="text-[#C9B8A5] hover:text-[#E5AB4A] font-normal text-[12px] leading-[100%] transition-colors"
+                  style={{ fontFamily: 'Inter' }}
+                >
+                  (Ver tabla)
+                </button>
+              )}
+            </div>
+            {isSaleProduct ? (
+              // Mostrar talla preseleccionada sin permitir cambios
+              <div className="w-full bg-[#2A2420]/50 border border-gray-700/50 rounded-lg px-4 py-3 text-gray-400 text-sm cursor-not-allowed">
+                {selectedSize || "No especificada"}
+              </div>
+            ) : (
+              // Selector normal para productos de tienda
+              <div className="relative">
+                <select
+                  value={selectedSize}
+                  onChange={(e) => setSelectedSize(e.target.value)}
+                  className="w-full bg-[#2A2420] border border-gray-700 rounded-lg px-4 py-3 pr-10 text-gray-300 text-sm appearance-none cursor-pointer focus:outline-none focus:border-[#AA3E11] transition-colors"
+                  style={{ fontFamily: 'Inter' }}
+                >
+                  <option value="">Seleccionar talla</option>
+                  {availableSizes.map((size) => {
+                    // Verificar si hay stock disponible para esta talla
+                    const hasStock = variants.some(v => 
+                      v.size === size && v.available
+                    )
+                    return (
+                      <option 
+                        key={size} 
+                        value={size} 
+                        className="bg-[#2A2420]"
+                        disabled={!hasStock}
+                      >
+                        {size} {!hasStock ? '(Agotado)' : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            )}
+            {!isSaleProduct && selectedSize && (
+              <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%] mt-2" style={{ fontFamily: 'Inter' }}>
+                {selectedVariant && selectedVariant.stock > 0 
+                  ? `${selectedVariant.stock} unidad${selectedVariant.stock !== 1 ? 'es' : ''} disponible${selectedVariant.stock !== 1 ? 's' : ''}`
+                  : 'Selecciona otras opciones para ver disponibilidad'
+                }
+              </p>
             )}
           </div>
-          {isSaleProduct ? (
-            // Mostrar talla preseleccionada sin permitir cambios
-            <div className="w-full bg-[#2A2420]/50 border border-gray-700/50 rounded-lg px-4 py-3 text-gray-400 text-sm cursor-not-allowed">
-              {selectedSize || "No especificada"}
-            </div>
-          ) : (
-            // Selector normal para productos de tienda
-            <div className="relative">
-              <select
-                value={selectedSize}
-                onChange={(e) => setSelectedSize(e.target.value)}
-                className="w-full bg-[#2A2420] border border-gray-700 rounded-lg px-4 py-3 pr-10 text-gray-300 text-sm appearance-none cursor-pointer focus:outline-none focus:border-[#AA3E11] transition-colors"
-                style={{ fontFamily: 'Inter' }}
-              >
-                <option value="">Seleccionar talla</option>
-                {availableSizes.map((size) => (
-                  <option key={size} value={size} className="bg-[#2A2420]">
-                    {size}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-          )}
-          {!isSaleProduct && (
-            <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%] mt-2" style={{ fontFamily: 'Inter' }}>
-              Selecciona una talla para ver el rango recomendado.
-            </p>
-          )}
-        </div>
+        )}
 
         {/* Selector de Color */}
-        <div className="mb-4">
-          <label className="text-[#C9B8A5] font-normal text-[12px] leading-[100%] mb-3 block" style={{ fontFamily: 'Inter' }}>
-            Color
-          </label>
-          {isSaleProduct ? (
-            // Mostrar color preseleccionado sin permitir cambios
-            <>
-              <div className="flex gap-2 mb-3">
-                {availableColors.map((color) => (
-                  <div
-                    key={color.name}
-                    className={`w-7 h-7 rounded-full ${selectedColor === color.name
-                      ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715]'
-                      : 'opacity-30'
-                      }`}
-                    style={{ backgroundColor: color.hex }}
-                    aria-label={`Color ${color.name}`}
-                  />
-                ))}
+        {availableColors.length > 0 && (
+          <div className="mb-4">
+            <label className="text-[#C9B8A5] font-normal text-[12px] leading-[100%] mb-3 block" style={{ fontFamily: 'Inter' }}>
+              Color
+            </label>
+            {isSaleProduct ? (
+              // Mostrar color preseleccionado sin permitir cambios
+              <>
+                <div className="flex gap-2 mb-3 flex-wrap">
+                  {availableColors.map((color) => (
+                    <div
+                      key={color.name}
+                      className={`w-7 h-7 rounded-full border-2 ${selectedColor === color.name
+                        ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715] border-white'
+                        : 'opacity-30 border-gray-600'
+                        }`}
+                      style={{ backgroundColor: color.hex }}
+                      aria-label={`Color ${color.name}`}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+                <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
+                  Color: <span className="text-white">{selectedColor}</span>
+                </p>
+              </>
+            ) : (
+              // Selector normal para productos de tienda
+              <>
+                <div className="flex gap-2 mb-3 flex-wrap">
+                  {availableColors.map((color) => {
+                    // Verificar si hay stock disponible para este color
+                    const hasStock = variants.some(v => 
+                      v.color === color.name && v.available
+                    )
+                    return (
+                      <button
+                        key={color.name}
+                        onClick={() => hasStock && setSelectedColor(color.name)}
+                        disabled={!hasStock}
+                        className={`w-7 h-7 rounded-full transition-all duration-200 border-2 ${
+                          selectedColor === color.name
+                            ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715] border-white'
+                            : hasStock 
+                              ? 'hover:scale-105 border-gray-600 hover:border-white' 
+                              : 'opacity-30 cursor-not-allowed border-gray-700'
+                        }`}
+                        style={{ backgroundColor: color.hex }}
+                        aria-label={`Color ${color.name}`}
+                        title={`${color.name}${!hasStock ? ' (Agotado)' : ''}`}
+                      />
+                    )
+                  })}
+                </div>
+                <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
+                  Color: <span className="text-white">{selectedColor || 'Selecciona un color'}</span>
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Selector de Tipo */}
+        {availableTypes.length > 0 && (
+          <div className="mb-4">
+            <label className="text-[#C9B8A5] font-normal text-[12px] leading-[100%] mb-2 block" style={{ fontFamily: 'Inter' }}>
+              Tipo
+            </label>
+            {isSaleProduct ? (
+              // Mostrar tipo preseleccionado sin permitir cambios
+              <div className="w-full bg-[#2A2420]/50 border border-gray-700/50 rounded-lg px-4 py-3 text-gray-400 text-sm cursor-not-allowed">
+                {selectedType || "No especificado"}
               </div>
-              <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
-                Color: <span className="text-white">{selectedColor}</span>
-              </p>
-            </>
-          ) : (
-            // Selector normal para productos de tienda
-            <>
-              <div className="flex gap-2 mb-3">
-                {availableColors.map((color) => (
-                  <button
-                    key={color.name}
-                    onClick={() => setSelectedColor(color.name)}
-                    className={`w-7 h-7 rounded-full transition-all duration-200 ${selectedColor === color.name
-                      ? 'ring-2 ring-[#AA3E11] ring-offset-2 ring-offset-[#1B1715]'
-                      : 'hover:scale-105'
-                      }`}
-                    style={{ backgroundColor: color.hex }}
-                    aria-label={`Color ${color.name}`}
-                  />
-                ))}
+            ) : (
+              // Selector normal para productos de tienda
+              <div className="relative">
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="w-full bg-[#2A2420] border border-gray-700 rounded-lg px-4 py-3 pr-10 text-gray-300 text-sm appearance-none cursor-pointer focus:outline-none focus:border-[#AA3E11] transition-colors"
+                  style={{ fontFamily: 'Inter' }}
+                >
+                  <option value="">Seleccionar tipo</option>
+                  {availableTypes.map((type) => {
+                    // Verificar si hay stock disponible para este tipo
+                    const hasStock = variants.some(v => 
+                      v.type === type && v.available
+                    )
+                    return (
+                      <option 
+                        key={type} 
+                        value={type} 
+                        className="bg-[#2A2420]"
+                        disabled={!hasStock}
+                      >
+                        {type} {!hasStock ? '(Agotado)' : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
-              <p className="text-[#C9B8A5] font-normal text-[12px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
-                Color: <span className="text-white">{selectedColor}</span>
-              </p>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+
+        {/* Información de la variante seleccionada */}
+        {selectedVariant && !isSaleProduct && (
+          <div className="mb-4 p-3 bg-[#2A2420]/50 border border-[#AA3E11]/30 rounded-lg">
+            <p className="text-[#E5AB4A] font-medium text-[13px] mb-1" style={{ fontFamily: 'Inter' }}>
+              Variante seleccionada:
+            </p>
+            <div className="text-[#C9B8A5] text-[12px] space-y-1" style={{ fontFamily: 'Inter' }}>
+              <p>SKU: <span className="text-white">{selectedVariant.sku}</span></p>
+              {selectedVariant.color && <p>Color: <span className="text-white">{selectedVariant.color}</span></p>}
+              {selectedVariant.size && <p>Talla: <span className="text-white">{selectedVariant.size}</span></p>}
+              {selectedVariant.type && <p>Tipo: <span className="text-white">{selectedVariant.type}</span></p>}
+              <p>Precio: <span className="text-[#F0B676] font-bold">{formatPrice(selectedVariant.price)}</span></p>
+              <p>Stock: <span className={`font-medium ${selectedVariant.stock <= 3 ? 'text-red-400' : 'text-green-400'}`}>
+                {selectedVariant.stock} unidad{selectedVariant.stock !== 1 ? 'es' : ''}
+              </span></p>
+            </div>
+          </div>
+        )}
 
         {/* Botones */}
         <div className="flex gap-2 flex-col sm:flex-row">

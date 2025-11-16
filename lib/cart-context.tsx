@@ -7,6 +7,8 @@ interface CartItem {
   variantId: string // ID de la variante del producto
   name: string
   color: string
+  size?: string // Talla de la variante
+  type?: string // Tipo de la variante
   price: number
   quantity: number
   image: string
