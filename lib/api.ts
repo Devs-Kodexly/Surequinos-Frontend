@@ -109,6 +109,37 @@ export interface OrderDto {
 
 export interface CreateOrderResponse extends OrderDto {}
 
+export interface UserDto {
+  id: string
+  name: string
+  email: string
+  phoneNumber?: string
+  roleId: string
+  role: string
+  documentNumber?: string
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateUserRequest {
+  name: string
+  email: string
+  phoneNumber?: string
+  password: string
+  role: string
+  documentNumber?: string
+}
+
+export interface UpdateUserRequest {
+  name: string
+  email: string
+  phoneNumber?: string
+  password?: string
+  role: string
+  documentNumber?: string
+}
+
 export interface PaginatedResponse<T> {
   content: T[]
   pageable: {
@@ -410,6 +441,68 @@ class ApiClient {
 
   async getOrdersByDateRange(startDate: string, endDate: string): Promise<OrderDto[]> {
     return this.request<OrderDto[]>(`/orders/date-range?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)
+  }
+
+  // Users API
+  async getUserById(id: string): Promise<UserDto> {
+    return this.request<UserDto>(`/users/${id}`)
+  }
+
+  async getUserByEmail(email: string): Promise<UserDto> {
+    return this.request<UserDto>(`/users/email/${encodeURIComponent(email)}`)
+  }
+
+  async searchUsers(params: {
+    name?: string
+    email?: string
+    documentNumber?: string
+    phoneNumber?: string
+    roles?: string[]
+    statuses?: string[]
+    startDate?: string
+    endDate?: string
+  }): Promise<UserDto[]> {
+    const queryParams = new URLSearchParams()
+    if (params.name) queryParams.append('name', params.name)
+    if (params.email) queryParams.append('email', params.email)
+    if (params.documentNumber) queryParams.append('documentNumber', params.documentNumber)
+    if (params.phoneNumber) queryParams.append('phoneNumber', params.phoneNumber)
+    if (params.roles) {
+      for (const role of params.roles) {
+        queryParams.append('roles', role)
+      }
+    }
+    if (params.statuses) {
+      for (const status of params.statuses) {
+        queryParams.append('statuses', status)
+      }
+    }
+    if (params.startDate) queryParams.append('startDate', params.startDate)
+    if (params.endDate) queryParams.append('endDate', params.endDate)
+    
+    const queryString = queryParams.toString()
+    const endpoint = queryString ? `/users/search?${queryString}` : '/users/search'
+    return this.request<UserDto[]>(endpoint)
+  }
+
+  async createUser(data: CreateUserRequest): Promise<UserDto> {
+    return this.request<UserDto>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateUser(id: string, data: UpdateUserRequest): Promise<UserDto> {
+    return this.request<UserDto>(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    return this.request<void>(`/users/${id}`, {
+      method: 'DELETE',
+    })
   }
 }
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Package, Tag, ShoppingBag, Home, LogOut, User } from "lucide-react"
+import { LayoutDashboard, Package, Tag, ShoppingBag, Home, LogOut, User, Users, UserCircle } from "lucide-react"
 import { logout, getAdminEmail } from "@/lib/auth"
 import { useEffect, useState } from "react"
 
@@ -20,6 +20,8 @@ export function AdminSidebar() {
     { href: "/admin/productos", label: "Productos", icon: Package },
     { href: "/admin/promociones", label: "Promociones", icon: Tag },
     { href: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag },
+    { href: "/admin/usuarios", label: "Usuarios", icon: Users },
+    { href: "/admin/clientes", label: "Clientes", icon: UserCircle },
   ]
 
   const handleLogout = () => {

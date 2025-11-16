@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Package, Tag, ShoppingBag } from "lucide-react"
+import { LayoutDashboard, Package, Tag, ShoppingBag, Users, UserCircle } from "lucide-react"
 
 export function AdminMobileNav() {
   const pathname = usePathname()
@@ -12,11 +12,13 @@ export function AdminMobileNav() {
     { href: "/admin/productos", label: "Productos", icon: Package },
     { href: "/admin/promociones", label: "Promociones", icon: Tag },
     { href: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag },
+    { href: "/admin/usuarios", label: "Usuarios", icon: Users },
+    { href: "/admin/clientes", label: "Clientes", icon: UserCircle },
   ]
 
   return (
     <nav className="lg:hidden bg-[#1A1311] border-b border-[#2a2a2a]">
-      <div className="grid grid-cols-4 gap-1 p-2 sm:p-3">
+      <div className="grid grid-cols-6 gap-1 p-2 sm:p-3">
         {links.map((link) => {
           const Icon = link.icon
           const isActive = pathname === link.href

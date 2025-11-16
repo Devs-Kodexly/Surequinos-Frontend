@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { Home, Package, ShoppingBag, Tag, LogOut, Menu, X } from "lucide-react"
+import { Home, Package, ShoppingBag, Tag, LogOut, Menu, X, Users, UserCircle } from "lucide-react"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { AdminMobileNav } from "@/components/admin-mobile-nav"
 import { isAuthenticated, logout, getAdminEmail } from "@/lib/auth"
@@ -46,6 +46,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/productos", icon: Package, label: "Productos" },
     { href: "/admin/pedidos", icon: ShoppingBag, label: "Pedidos" },
     { href: "/admin/promociones", icon: Tag, label: "Promociones" },
+    { href: "/admin/usuarios", icon: Users, label: "Usuarios" },
+    { href: "/admin/clientes", icon: UserCircle, label: "Clientes" },
   ]
 
   return (
