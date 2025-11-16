@@ -115,6 +115,59 @@ export interface OrderDto {
 
 export interface CreateOrderResponse extends OrderDto {}
 
+export interface AddressDto {
+  id: string
+  userId: string
+  street: string
+  city: string
+  state?: string
+  country?: string
+  additionalInfo?: string
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateAddressRequest {
+  street: string
+  city: string
+  state?: string
+  country?: string
+  additionalInfo?: string
+  isDefault?: boolean
+}
+
+export interface UserDto {
+  id: string
+  name: string
+  email: string
+  phoneNumber?: string
+  roleId: string
+  role: string
+  documentNumber?: string
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateUserRequest {
+  name: string
+  email: string
+  phoneNumber?: string
+  password: string
+  role: string
+  documentNumber?: string
+}
+
+export interface UpdateUserRequest {
+  name: string
+  email: string
+  phoneNumber?: string
+  password?: string
+  role: string
+  documentNumber?: string
+}
+
 export interface PaginatedResponse<T> {
   content: T[]
   pageable: {
@@ -357,6 +410,8 @@ class ApiClient {
       variantId: string
       quantity: number
     }>
+    addressId?: string
+    address?: CreateAddressRequest
   }): Promise<CreateOrderResponse> {
     return this.request<CreateOrderResponse>('/orders', {
       method: 'POST',
@@ -415,6 +470,146 @@ class ApiClient {
 
   async getOrdersByDateRange(startDate: string, endDate: string): Promise<OrderDto[]> {
     return this.request<OrderDto[]>(`/orders/date-range?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)
+  }
+
+  // Users API
+  async getUserById(id: string): Promise<UserDto> {
+    return this.request<UserDto>(`/users/${id}`)
+  }
+
+  async getUserByEmail(email: string): Promise<UserDto | null> {
+    const url = `${this.baseURL}/users/email/${encodeURIComponent(email)}`
+    
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      // Si el usuario no existe (404), retornar null sin lanzar error
+      if (response.status === 404) {
+        return null
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      }
+      
+      return await response.json()
+    } catch (error) {
+      // Solo loguear errores que no sean 404
+      if (error instanceof Error && !error.message.includes('404')) {
+        console.error(`API request failed: /users/email/${email}`, error)
+      }
+      // Si es un 404, retornar null
+      if (error instanceof Error && error.message.includes('404')) {
+        return null
+      }
+      // Para otros errores, re-lanzar el error
+      throw error
+    }
+  }
+
+  async searchUsers(params: {
+    name?: string
+    email?: string
+    documentNumber?: string
+    phoneNumber?: string
+    roles?: string[]
+    statuses?: string[]
+    startDate?: string
+    endDate?: string
+  }): Promise<UserDto[]> {
+    const queryParams = new URLSearchParams()
+    if (params.name) queryParams.append('name', params.name)
+    if (params.email) queryParams.append('email', params.email)
+    if (params.documentNumber) queryParams.append('documentNumber', params.documentNumber)
+    if (params.phoneNumber) queryParams.append('phoneNumber', params.phoneNumber)
+    if (params.roles) {
+      for (const role of params.roles) {
+        queryParams.append('roles', role)
+      }
+    }
+    if (params.statuses) {
+      for (const status of params.statuses) {
+        queryParams.append('statuses', status)
+      }
+    }
+    if (params.startDate) queryParams.append('startDate', params.startDate)
+    if (params.endDate) queryParams.append('endDate', params.endDate)
+    
+    const queryString = queryParams.toString()
+    const endpoint = queryString ? `/users/search?${queryString}` : '/users/search'
+    return this.request<UserDto[]>(endpoint)
+  }
+
+  async createUser(data: CreateUserRequest): Promise<UserDto> {
+    return this.request<UserDto>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateUser(id: string, data: UpdateUserRequest): Promise<UserDto> {
+    return this.request<UserDto>(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    return this.request<void>(`/users/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Addresses API
+  async getAddressesByUserEmail(email: string): Promise<AddressDto[]> {
+    const url = `${this.baseURL}/addresses/user/${encodeURIComponent(email)}`
+    
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      // Si el usuario no existe (404), retornar array vacío sin lanzar error
+      if (response.status === 404) {
+        return []
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      }
+      
+      return await response.json()
+    } catch (error) {
+      // Solo loguear errores que no sean 404
+      if (error instanceof Error && !error.message.includes('404')) {
+        console.error(`API request failed: /addresses/user/${email}`, error)
+      }
+      // Si es un 404, retornar array vacío
+      if (error instanceof Error && error.message.includes('404')) {
+        return []
+      }
+      // Para otros errores, re-lanzar el error
+      throw error
+    }
+  }
+
+  async getAddressesByUserId(userId: string): Promise<AddressDto[]> {
+    return this.request<AddressDto[]>(`/addresses/user/id/${userId}`)
+  }
+
+  async createAddress(userId: string, data: CreateAddressRequest): Promise<AddressDto> {
+    return this.request<AddressDto>(`/addresses/user/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   }
 }
 

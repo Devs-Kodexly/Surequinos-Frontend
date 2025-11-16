@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { useCart } from "@/lib/cart-context"
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { SelectCustom } from "@/components/ui/select-custom"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { api } from "@/lib/api"
+import { api, AddressDto } from "@/lib/api"
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -30,6 +30,20 @@ export default function CheckoutPage() {
     shippingMethod: "retiro",
   })
 
+  // Address management state
+  const [addresses, setAddresses] = useState<AddressDto[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("")
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false)
+  const [loadingAddresses, setLoadingAddresses] = useState(false)
+  const [newAddress, setNewAddress] = useState({
+    street: "",
+    city: "Medellín",
+    state: "Antioquia",
+    country: "Colombia",
+    additionalInfo: "",
+    isDefault: false
+  })
+
   const formatPrice = (price: number) => {
     return `$ ${price.toLocaleString("es-CO")}`
   }
@@ -43,6 +57,111 @@ export default function CheckoutPage() {
       ...formData,
       [e.target.name]: e.target.value,
     })
+  }
+
+  const fillAddressFields = (address: AddressDto) => {
+    setFormData(prev => ({
+      ...prev,
+      address: address.street,
+      city: address.city,
+      department: address.state || "Antioquia",
+    }))
+    setNewAddress({
+      street: address.street,
+      city: address.city,
+      state: address.state || "Antioquia",
+      country: address.country || "Colombia",
+      additionalInfo: address.additionalInfo || "",
+      isDefault: address.isDefault
+    })
+  }
+
+  // Cargar datos del usuario y direcciones cuando se ingrese el email
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (formData.email && formData.email.includes('@')) {
+        setLoadingAddresses(true)
+        try {
+          // Cargar usuario por email
+          const user = await api.getUserByEmail(formData.email.trim())
+          
+          // Prellenar datos del usuario si existe
+          if (user) {
+            setFormData(prev => ({
+              ...prev,
+              fullName: user.name || prev.fullName,
+              phone: user.phoneNumber || prev.phone,
+              document: user.documentNumber || prev.document,
+            }))
+          }
+
+          // Cargar direcciones del usuario
+          const userAddresses = await api.getAddressesByUserEmail(formData.email.trim())
+          setAddresses(userAddresses)
+          
+          // Si hay direcciones y hay una por defecto, seleccionarla automáticamente
+          if (userAddresses.length > 0) {
+            const defaultAddress = userAddresses.find(addr => addr.isDefault)
+            if (defaultAddress) {
+              setSelectedAddressId(defaultAddress.id)
+              setShowNewAddressForm(false)
+              // Llenar los campos con la dirección por defecto
+              fillAddressFields(defaultAddress)
+            } else {
+              setSelectedAddressId("")
+              setShowNewAddressForm(true)
+            }
+          } else {
+            setSelectedAddressId("")
+            setShowNewAddressForm(true)
+          }
+        } catch {
+          // Si el usuario no existe o no tiene direcciones, simplemente mostrar el formulario
+          setAddresses([])
+          setSelectedAddressId("")
+          setShowNewAddressForm(true)
+        } finally {
+          setLoadingAddresses(false)
+        }
+      } else {
+        setAddresses([])
+        setSelectedAddressId("")
+        setShowNewAddressForm(true)
+      }
+    }
+
+    // Debounce para evitar demasiadas llamadas
+    const timeoutId = setTimeout(() => {
+      loadUserData()
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.email])
+
+  const handleAddressSelect = (addressId: string) => {
+    setSelectedAddressId(addressId)
+    setShowNewAddressForm(false)
+    const address = addresses.find(addr => addr.id === addressId)
+    if (address) {
+      fillAddressFields(address)
+    }
+  }
+
+  const handleNewAddressChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setNewAddress(prev => ({
+      ...prev,
+      [name]: value
+    }))
+    // También actualizar formData para mantener consistencia
+    if (name === 'street') {
+      setFormData(prev => ({ ...prev, address: value }))
+    } else if (name === 'city') {
+      setFormData(prev => ({ ...prev, city: value }))
+    } else if (name === 'state') {
+      setFormData(prev => ({ ...prev, department: value }))
+    }
   }
 
   const [paymentMethod, setPaymentMethod] = useState("link")
@@ -124,8 +243,28 @@ export default function CheckoutPage() {
         ? 50000 
         : 0
 
-      // Preparar los datos de la orden
-      const orderData = {
+      // Preparar los datos de la orden con gestión de direcciones
+      const orderData: {
+        email: string
+        documentNumber: string
+        clientName: string
+        clientPhoneNumber: string
+        discountValue: number
+        notes?: string
+        paymentMethod: string
+        shippingAddress: string
+        shippingValue: number
+        items: Array<{ variantId: string; quantity: number }>
+        addressId?: string
+        address?: {
+          street: string
+          city: string
+          state?: string
+          country?: string
+          additionalInfo?: string
+          isDefault?: boolean
+        }
+      } = {
         email: formData.email,
         documentNumber: formData.document,
         clientName: formData.fullName,
@@ -137,6 +276,26 @@ export default function CheckoutPage() {
         shippingValue: shippingValue,
         items: orderItems
       }
+
+      // Gestión de direcciones según la documentación:
+      // 1. Si se seleccionó una dirección existente, enviar addressId (prioridad)
+      // 2. Si se está creando una nueva dirección, enviar el objeto address
+      // 3. Si no hay dirección, solo se usa shippingAddress como texto
+      if (selectedAddressId && !showNewAddressForm) {
+        // Usar dirección existente - enviar addressId
+        orderData.addressId = selectedAddressId
+      } else if (showNewAddressForm && newAddress.street && newAddress.city) {
+        // Crear nueva dirección - enviar objeto address
+        orderData.address = {
+          street: newAddress.street,
+          city: newAddress.city,
+          state: newAddress.state || undefined,
+          country: newAddress.country || undefined,
+          additionalInfo: newAddress.additionalInfo || undefined,
+          isDefault: newAddress.isDefault
+        }
+      }
+      // Si no hay dirección seleccionada ni nueva, solo se usa shippingAddress como texto (no se envía addressId ni address)
 
       // Crear la orden en el backend
       const response = await api.createOrder(orderData)
@@ -339,6 +498,25 @@ export default function CheckoutPage() {
                 Datos del comprador
               </h2>
               
+              {/* Email primero */}
+              <div className="mb-4">
+                <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
+                  Correo electrónico
+                </label>
+                <Input
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="tucorreo@email.com"
+                  className="bg-[#0F0B0A] border-gray-800 text-white placeholder:text-[#757575] h-11"
+                  style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
+                />
+                {loadingAddresses && (
+                  <p className="text-xs text-gray-500 mt-1">Buscando direcciones...</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
@@ -355,23 +533,6 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
-                    Correo electrónico
-                  </label>
-                  <Input
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="tucorreo@email.com"
-                    className="bg-[#0F0B0A] border-gray-800 text-white placeholder:text-[#757575] h-11"
-                    style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
                     Teléfono
                   </label>
                   <Input
@@ -383,19 +544,20 @@ export default function CheckoutPage() {
                     style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
                   />
                 </div>
-                <div>
-                  <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
-                    Documento
-                  </label>
-                  <Input
-                    name="document"
-                    value={formData.document}
-                    onChange={handleInputChange}
-                    placeholder="CC / NIT"
-                    className="bg-[#0F0B0A] border-gray-800 text-white placeholder:text-[#757575] h-11"
-                    style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
-                  />
-                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
+                  Documento
+                </label>
+                <Input
+                  name="document"
+                  value={formData.document}
+                  onChange={handleInputChange}
+                  placeholder="CC / NIT"
+                  className="bg-[#0F0B0A] border-gray-800 text-white placeholder:text-[#757575] h-11"
+                  style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
+                />
               </div>
             </div>
 
@@ -405,52 +567,154 @@ export default function CheckoutPage() {
                 Dirección de envío
               </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
-                    Departamento
+              {/* Selector de direcciones existentes */}
+              {addresses.length > 0 && (
+                <div className="mb-4">
+                  <label htmlFor="address-select" className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
+                    Seleccionar dirección guardada
                   </label>
-                  <SelectCustom
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    options={[
-                      { value: "Antioquia", label: "Antioquia" },
-                      { value: "Cundinamarca", label: "Cundinamarca" },
-                      { value: "Valle del Cauca", label: "Valle del Cauca" },
-                    ]}
-                  />
+                  <select
+                    id="address-select"
+                    value={selectedAddressId || ""}
+                    onChange={(e) => {
+                      if (e.target.value === "new") {
+                        setShowNewAddressForm(true)
+                        setSelectedAddressId("")
+                      } else if (e.target.value === "") {
+                        setSelectedAddressId("")
+                        setShowNewAddressForm(true)
+                      } else {
+                        handleAddressSelect(e.target.value)
+                      }
+                    }}
+                    className="w-full bg-[#0F0B0A] border border-gray-800 rounded-md px-4 py-3 text-white h-11"
+                    style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
+                  >
+                    <option value="">Seleccione una dirección...</option>
+                    {addresses.map((address) => (
+                      <option key={address.id} value={address.id}>
+                        {address.street}, {address.city}{address.isDefault ? " (Por defecto)" : ""}
+                      </option>
+                    ))}
+                    <option value="new">+ Agregar nueva dirección</option>
+                  </select>
+                  
+                  {/* Mostrar información de la dirección seleccionada */}
+                  {selectedAddressId && !showNewAddressForm && (() => {
+                    const selectedAddress = addresses.find(addr => addr.id === selectedAddressId)
+                    return selectedAddress ? (
+                      <div className="mt-3 p-3 bg-[#0F0B0A] border border-gray-800 rounded-md">
+                        <p className="text-white text-sm font-medium mb-1">
+                          {selectedAddress.street}
+                        </p>
+                        <p className="text-gray-400 text-sm">
+                          {selectedAddress.city}{selectedAddress.state ? `, ${selectedAddress.state}` : ""}
+                          {selectedAddress.country ? `, ${selectedAddress.country}` : ""}
+                        </p>
+                        {selectedAddress.additionalInfo && (
+                          <p className="text-gray-500 text-xs mt-1">{selectedAddress.additionalInfo}</p>
+                        )}
+                      </div>
+                    ) : null
+                  })()}
                 </div>
-                <div>
-                  <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
-                    Ciudad
-                  </label>
-                  <SelectCustom
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    options={[
-                      { value: "Medellín", label: "Medellín" },
-                      { value: "Bogotá", label: "Bogotá" },
-                      { value: "Cali", label: "Cali" },
-                    ]}
-                  />
-                </div>
-              </div>
+              )}
 
-              <div className="mb-4">
-                <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
-                  Dirección
-                </label>
-                <Input
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  placeholder="Calle 00 #00-00, barrio"
-                  className="bg-[#0F0B0A] border-gray-800 text-white placeholder:text-[#757575] h-11"
-                  style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
-                />
-              </div>
+              {/* Formulario de dirección (mostrar si no hay direcciones o si se selecciona "nueva") */}
+              {((showNewAddressForm || addresses.length === 0) && !selectedAddressId) && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
+                        Departamento
+                      </label>
+                      <SelectCustom
+                        name="state"
+                        value={newAddress.state}
+                        onChange={handleNewAddressChange}
+                        options={[
+                          { value: "Antioquia", label: "Antioquia" },
+                          { value: "Cundinamarca", label: "Cundinamarca" },
+                          { value: "Valle del Cauca", label: "Valle del Cauca" },
+                        ]}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
+                        Ciudad
+                      </label>
+                      <SelectCustom
+                        name="city"
+                        value={newAddress.city}
+                        onChange={handleNewAddressChange}
+                        options={[
+                          { value: "Medellín", label: "Medellín" },
+                          { value: "Bogotá", label: "Bogotá" },
+                          { value: "Cali", label: "Cali" },
+                        ]}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
+                      Dirección (Calle y número)
+                    </label>
+                    <Input
+                      name="street"
+                      value={newAddress.street}
+                      onChange={handleNewAddressChange}
+                      placeholder="Calle 00 #00-00, barrio"
+                      className="bg-[#0F0B0A] border-gray-800 text-white placeholder:text-[#757575] h-11"
+                      style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
+                      País
+                    </label>
+                    <Input
+                      name="country"
+                      value={newAddress.country}
+                      onChange={handleNewAddressChange}
+                      placeholder="Colombia"
+                      className="bg-[#0F0B0A] border-gray-800 text-white placeholder:text-[#757575] h-11"
+                      style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
+                      Información adicional (opcional)
+                    </label>
+                    <Input
+                      name="additionalInfo"
+                      value={newAddress.additionalInfo}
+                      onChange={handleNewAddressChange}
+                      placeholder="Apartamento, torre, referencias, etc."
+                      className="bg-[#0F0B0A] border-gray-800 text-white placeholder:text-[#757575] h-11"
+                      style={{ fontFamily: 'Inter', fontSize: '14px', lineHeight: '100%' }}
+                    />
+                  </div>
+
+                  {addresses.length > 0 && (
+                    <div className="mb-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newAddress.isDefault}
+                          onChange={(e) => setNewAddress(prev => ({ ...prev, isDefault: e.target.checked }))}
+                          className="w-4 h-4 text-[#AA3E11] bg-transparent border-gray-600 rounded focus:ring-[#AA3E11]"
+                        />
+                        <span style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '14px', lineHeight: '16px', color: '#C9B8A5' }}>
+                          Marcar como dirección por defecto
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </>
+              )}
 
               <div>
                 <label className="mb-2 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '15px', lineHeight: '16px', color: '#C9B8A5' }}>
