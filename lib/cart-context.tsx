@@ -16,7 +16,7 @@ interface CartItem {
 
 interface CartContextType {
   items: CartItem[]
-  addItem: (item: Omit<CartItem, "quantity">) => void
+  addItem: (item: Omit<CartItem, "quantity">, triggerAnimation?: boolean) => void
   removeItem: (id: string) => void
   updateQuantity: (id: string, quantity: number) => void
   clearCart: () => void
@@ -24,6 +24,9 @@ interface CartContextType {
   itemCount: number
   openCart: () => void
   setOpenCart: (callback: () => void) => void
+  triggerCartAnimation: (item: Omit<CartItem, "quantity">, startX: number, startY: number) => void
+  animationItem: { id: string; image: string; startX: number; startY: number } | null
+  clearAnimation: () => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -31,8 +34,9 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [openCartCallback, setOpenCartCallback] = useState<(() => void) | null>(null)
+  const [animationItem, setAnimationItem] = useState<{ id: string; image: string; startX: number; startY: number } | null>(null)
 
-  const addItem = (item: Omit<CartItem, "quantity">) => {
+  const addItem = (item: Omit<CartItem, "quantity">, triggerAnimation: boolean = false) => {
     setItems((prev) => {
       // Usar variantId como identificador único para encontrar items duplicados
       const itemId = item.variantId || item.id
@@ -43,8 +47,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return [...prev, { ...item, id: item.variantId || item.id, quantity: 1 }]
     })
     
-    // Ya no abrimos el carrito automáticamente
-    // La notificación se manejará desde el componente
+    // Si no se debe animar, abrir el carrito después de un pequeño delay
+    if (!triggerAnimation && openCartCallback) {
+      setTimeout(() => {
+        openCartCallback()
+      }, 100)
+    }
+  }
+
+  const triggerCartAnimation = (item: Omit<CartItem, "quantity">, startX: number, startY: number) => {
+    // Configurar la animación (para el resaltado del item)
+    setAnimationItem({
+      id: item.id,
+      image: item.image,
+      startX,
+      startY,
+    })
+    
+    // Añadir el item al carrito
+    addItem(item, true)
+    
+    // Abrir el carrito inmediatamente
+    if (openCartCallback) {
+      openCartCallback()
+    }
+  }
+
+  const clearAnimation = () => {
+    setAnimationItem(null)
   }
 
   const removeItem = (id: string) => {
@@ -77,7 +107,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total, itemCount, openCart, setOpenCart }}>
+    <CartContext.Provider value={{ 
+      items, 
+      addItem, 
+      removeItem, 
+      updateQuantity, 
+      clearCart, 
+      total, 
+      itemCount, 
+      openCart, 
+      setOpenCart,
+      triggerCartAnimation,
+      animationItem,
+      clearAnimation
+    }}>
       {children}
     </CartContext.Provider>
   )

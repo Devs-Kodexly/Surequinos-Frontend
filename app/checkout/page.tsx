@@ -409,13 +409,14 @@ export default function CheckoutPage() {
               <div className="mb-6">
                 {items.map((item) => (
                   <div key={item.id} className="flex gap-3 mb-5">
-                    <Image
-                      src={item.image || "/placeholder.svg"}
-                      alt={item.name}
-                      width={80}
-                      height={80}
-                      className="rounded-lg object-cover"
-                    />
+                    <div className="relative w-20 h-20 flex-shrink-0">
+                      <Image
+                        src={item.image || "/placeholder.svg"}
+                        alt={item.name}
+                        fill
+                        className="rounded-lg object-cover"
+                      />
+                    </div>
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
                         <h3 className="text-white font-medium mb-1" style={{ fontFamily: 'Inter', fontSize: '15px', lineHeight: '120%' }}>

@@ -8,8 +8,10 @@ import { SelectCustom } from "@/components/ui/select-custom"
 import { useCart } from "@/lib/cart-context"
 import { useToast } from "@/lib/toast-context"
 import { useProductDetail } from "@/hooks/use-product-detail"
+import { useProducts } from "@/hooks/use-products"
 import { cleanImageArray, formatPrice } from "@/lib/api"
 import { OptimizedImage } from "@/components/optimized-image"
+import { ProductCard } from "@/components/product-card"
 import Link from "next/link"
 import { Minus, Plus, ShoppingCart, AlertTriangle, Package } from "lucide-react"
 
@@ -20,10 +22,11 @@ interface ProductDetailPageProps {
 }
 
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
-  const { addItem } = useCart()
+  const { addItem, triggerCartAnimation } = useCart()
   const { showToast } = useToast()
   const resolvedParams = use(params)
   const { product, loading, error } = useProductDetail(resolvedParams.slug)
+  const { products: allProducts } = useProducts()
 
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<any>(null)
@@ -100,7 +103,15 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     return product?.totalStock || 0
   }, [selectedVariant, product])
 
-  const handleAddToCart = () => {
+  // Productos relacionados (misma categoría, excluyendo el actual)
+  const relatedProducts = useMemo(() => {
+    if (!product || !allProducts.length) return []
+    return allProducts
+      .filter(p => p.id !== product.id && p.category === product.category)
+      .slice(0, 4) // Mostrar máximo 4 productos relacionados
+  }, [product, allProducts])
+
+  const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!product) return
 
     if (!selectedSize && availableSizes.length > 0) {
@@ -115,14 +126,22 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
     const variantToAdd = selectedVariant || product.variants.find(v => v.available) || product.variants[0]
 
-    addItem({
+    const itemToAdd = {
       id: product.id,
       name: product.name,
       variantId: variantToAdd?.id || product.id, // Usar el ID de la variante o el del producto como fallback
       price: currentPrice,
       image: productImages[selectedImage] || productImages[0] || `/productos/${product.name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
       color: variantToAdd?.color || availableColors[0]?.name || "Sin especificar",
-    })
+    }
+
+    // Obtener la posición del botón para la animación
+    const buttonRect = e.currentTarget.getBoundingClientRect()
+    const startX = buttonRect.left + buttonRect.width / 2 - 40
+    const startY = buttonRect.top - 100
+
+    // Activar la animación
+    triggerCartAnimation(itemToAdd, startX, startY)
 
     showToast("Producto añadido al carrito", "success", 3000)
   }
@@ -407,17 +426,65 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           </div>
         </div>
 
-        {/* Related Products - Comentado por ahora, se puede implementar después */}
-        {/* 
-        <div className="mb-4 md:mb-8">
-          <h2 className="text-center font-bold mb-8" style={{ fontFamily: 'Inter', fontSize: '24px', color: '#F2E9E4' }}>
-            También te puede interesar
-          </h2>
-          <div className="text-center text-gray-400">
-            <p>Productos relacionados próximamente</p>
+        {/* Related Products */}
+        {relatedProducts.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-center font-bold mb-8" style={{ fontFamily: 'Inter', fontSize: '24px', color: '#F2E9E4' }}>
+              También te puede interesar
+            </h2>
+            {/* Desktop: Grid de 3 columnas con cards más grandes y anchas */}
+            <div className="hidden lg:grid lg:grid-cols-3 gap-8">
+              {relatedProducts.map((relatedProduct) => (
+                <ProductCard
+                  key={relatedProduct.id}
+                  id={relatedProduct.id}
+                  slug={relatedProduct.slug}
+                  title={relatedProduct.name}
+                  description={relatedProduct.description || ''}
+                  price={formatPrice(relatedProduct.minPrice || relatedProduct.basePrice)}
+                  priceNumber={relatedProduct.minPrice || relatedProduct.basePrice}
+                  image={relatedProduct.images}
+                  variants={relatedProduct.variants}
+                  category={relatedProduct.category}
+                  totalStock={relatedProduct.totalStock || 0}
+                  hasStock={(relatedProduct.totalStock || 0) > 0}
+                  sizeVariant="large"
+                />
+              ))}
+            </div>
+            {/* Mobile/Tablet: Carrusel horizontal con scroll suave */}
+            <div className="lg:hidden overflow-x-auto pb-4 scrollbar-hide" style={{ 
+              scrollSnapType: 'x mandatory',
+              scrollBehavior: 'smooth',
+              WebkitOverflowScrolling: 'touch'
+            }}>
+              <div className="flex gap-4 px-1">
+                {relatedProducts.map((relatedProduct) => (
+                  <div 
+                    key={relatedProduct.id} 
+                    className="flex-shrink-0 w-[85vw] sm:w-[70vw] md:w-[45vw]"
+                    style={{ scrollSnapAlign: 'start' }}
+                  >
+                    <ProductCard
+                      id={relatedProduct.id}
+                      slug={relatedProduct.slug}
+                      title={relatedProduct.name}
+                      description={relatedProduct.description || ''}
+                      price={formatPrice(relatedProduct.minPrice || relatedProduct.basePrice)}
+                      priceNumber={relatedProduct.minPrice || relatedProduct.basePrice}
+                      image={relatedProduct.images}
+                      variants={relatedProduct.variants}
+                      category={relatedProduct.category}
+                      totalStock={relatedProduct.totalStock || 0}
+                      hasStock={(relatedProduct.totalStock || 0) > 0}
+                      sizeVariant="large"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-        */}
+        )}
       </div>
 
       <Footer />

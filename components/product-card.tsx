@@ -39,6 +39,8 @@ interface ProductCardProps {
   isSaleProduct?: boolean
   preselectedSize?: string
   preselectedColor?: string
+  // Size variant for related products
+  sizeVariant?: 'default' | 'large'
 }
 
 export function ProductCard({
@@ -61,8 +63,9 @@ export function ProductCard({
   isSaleProduct = false,
   preselectedSize,
   preselectedColor,
+  sizeVariant = 'default',
 }: ProductCardProps) {
-  const { addItem } = useCart()
+  const { addItem, triggerCartAnimation } = useCart()
   const { showToast } = useToast()
 
   // Procesar imágenes del backend
@@ -235,7 +238,19 @@ export function ProductCard({
     }
   }, [variants, preselectedColor, preselectedSize])
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Validar que se haya seleccionado color (si hay opciones de color)
+    if (availableColors.length > 0 && !selectedColor) {
+      showToast("Por favor selecciona un color", "error", 3000)
+      return
+    }
+
+    // Validar que se haya seleccionado talla (si hay opciones de talla)
+    if (allSizes.length > 0 && !selectedSize) {
+      showToast("Por favor selecciona una talla", "error", 3000)
+      return
+    }
+
     // Usar variante seleccionada o la primera disponible
     const variantToAdd = selectedVariant || variants.find(v => v.available) || variants[0]
 
@@ -251,7 +266,7 @@ export function ProductCard({
       return
     }
 
-    addItem({
+    const itemToAdd = {
       id: variantToAdd.id, // Usar el variantId como id para compatibilidad
       variantId: variantToAdd.id, // ID de la variante
       name: title,
@@ -259,7 +274,15 @@ export function ProductCard({
       image: currentImage || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`,
       color: variantToAdd?.color || selectedColor || "Sin especificar",
       size: variantToAdd?.size,
-    })
+    }
+
+    // Obtener la posición del botón para la animación
+    const buttonRect = e.currentTarget.getBoundingClientRect()
+    const startX = buttonRect.left + buttonRect.width / 2 - 40 // Centrar la imagen (40px = mitad del ancho de la imagen)
+    const startY = buttonRect.top - 100 // Posición arriba del botón
+
+    // Activar la animación
+    triggerCartAnimation(itemToAdd, startX, startY)
 
     // Mostrar notificación de éxito
     showToast("Producto añadido correctamente", "success", 3000)
@@ -308,9 +331,17 @@ export function ProductCard({
     return undefined
   }
 
+  // Estilos dinámicos basados en la variante de tamaño
+  const titleSize = sizeVariant === 'large' ? 'text-[21px] leading-[28px]' : 'text-[19.6px] leading-[26.4px]'
+  const descriptionSize = sizeVariant === 'large' ? 'text-[15px] leading-[20px]' : 'text-[14.9px]'
+  const priceSize = sizeVariant === 'large' ? 'text-[22px]' : 'text-[17.7px]'
+  const paddingSize = sizeVariant === 'large' ? 'p-7' : 'p-6'
+  const imageAspect = sizeVariant === 'large' ? 'aspect-[4/3]' : 'aspect-[4/3]'
+  const buttonSize = sizeVariant === 'large' ? 'py-3.5 text-[15px]' : 'py-3 md:py-6'
+
   return (
     <div className="bg-[#1B1715] rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full">
-      <div className="relative aspect-[4/3] bg-muted group">
+      <div className={`relative ${imageAspect} bg-muted group`}>
 
         <OptimizedImage
           src={currentImage}
@@ -366,21 +397,21 @@ export function ProductCard({
 
 
       </div>
-      <div className="p-6 flex flex-col flex-1">
+      <div className={`${paddingSize} flex flex-col flex-1`}>
         <div className="flex-1">
           {/* Título del producto */}
-          <h3 className="text-[#F2E9E4] font-bold text-[19.6px] leading-[26.4px] mb-2" style={{ fontFamily: 'Inter' }}>
+          <h3 className={`text-[#F2E9E4] font-bold ${titleSize} mb-2`} style={{ fontFamily: 'Inter' }}>
             {title}
           </h3>
 
           {/* Descripción del producto - altura fija con 2 líneas */}
-          <p className="text-[#D9C9B7] font-normal text-[14.9px] leading-[100%] mb-4 line-clamp-2" style={{ fontFamily: 'Inter' }}>
+          <p className={`text-[#D9C9B7] font-normal ${descriptionSize} leading-[100%] mb-4 line-clamp-2`} style={{ fontFamily: 'Inter' }}>
             {description}
           </p>
 
           {/* Precio */}
           <div className="flex items-baseline gap-2 mb-4">
-            <span className="text-[#F0B676] font-bold text-[17.7px] leading-[100%]" style={{ fontFamily: 'Inter' }}>
+            <span className={`text-[#F0B676] font-bold ${priceSize} leading-[100%]`} style={{ fontFamily: 'Inter' }}>
               {displayPrice}
             </span>
             {originalPrice && (
@@ -493,14 +524,18 @@ export function ProductCard({
         <div className="flex gap-2 flex-col sm:flex-row">
           <Button
             onClick={handleAddToCart}
-            disabled={totalStock === 0}
-            className="flex-1 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg py-3 md:py-6 font-medium"
+            disabled={
+              totalStock === 0 || 
+              (availableColors.length > 0 && !selectedColor) || 
+              (allSizes.length > 0 && !selectedSize)
+            }
+            className={`flex-1 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg ${buttonSize} font-medium`}
           >
             {totalStock === 0 ? "AGOTADO" : "Añadir"}
           </Button>
           <Button
             variant="outline"
-            className="flex-1 border-[#C0763A] text-[#C0763A] hover:bg-[#C0763A] hover:text-[#0F0B0A] bg-transparent rounded-lg py-3 md:py-6 font-medium"
+            className={`flex-1 border-[#C0763A] text-[#C0763A] hover:bg-[#C0763A] hover:text-[#0F0B0A] bg-transparent rounded-lg ${buttonSize} font-medium`}
             onClick={() => window.location.href = `/producto/${slug || id}`}
           >
             Detalles

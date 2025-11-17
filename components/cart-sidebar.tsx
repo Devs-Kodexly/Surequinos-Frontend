@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useCart } from "@/lib/cart-context"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { AddToCartAnimation } from "@/components/add-to-cart-animation"
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -14,15 +15,26 @@ interface CartSidebarProps {
 
 export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const router = useRouter()
-  const { items, removeItem, updateQuantity, total, itemCount } = useCart()
+  const { items, removeItem, updateQuantity, total, itemCount, animationItem, clearAnimation } = useCart()
   const [showCheckout, setShowCheckout] = useState(false)
   const [couponCode, setCouponCode] = useState("")
   const [shippingOption, setShippingOption] = useState("Bogotá (retiro en taller - $0)")
+  const [highlightedItem, setHighlightedItem] = useState<string | null>(null)
 
   const handleProceedToCheckout = () => {
     onClose()
     router.push("/checkout")
   }
+
+  // Efecto para resaltar el nuevo item cuando se añade
+  useEffect(() => {
+    if (animationItem && isOpen) {
+      setHighlightedItem(animationItem.id)
+      setTimeout(() => {
+        setHighlightedItem(null)
+      }, 1500)
+    }
+  }, [animationItem, isOpen])
 
   if (!isOpen) return null
 
@@ -37,8 +49,78 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-[#1A1311] z-50 shadow-xl overflow-y-auto">
+      <AddToCartAnimation item={animationItem} onComplete={clearAnimation} />
+      <div 
+        className="fixed inset-0 bg-black/70 z-40 transition-opacity duration-300" 
+        onClick={onClose}
+        style={{
+          animation: isOpen ? 'fadeIn 0.3s ease-out' : 'none'
+        }}
+      />
+      <div 
+        className="fixed right-0 top-0 h-full w-full max-w-md bg-[#1A1311] z-50 shadow-xl overflow-y-auto"
+        style={{
+          animation: isOpen ? 'slideInRight 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none'
+        }}
+      >
+        <style jsx>{`
+          @keyframes fadeIn {
+            from { 
+              opacity: 0; 
+            }
+            to { 
+              opacity: 1; 
+            }
+          }
+          
+          @keyframes slideInRight {
+            0% { 
+              transform: translateX(100%);
+              opacity: 0;
+            }
+            60% {
+              transform: translateX(-5px);
+              opacity: 1;
+            }
+            100% { 
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+          
+          @keyframes highlightItem {
+            0% {
+              background-color: rgba(15, 11, 10, 1);
+              transform: scale(1);
+              box-shadow: 0 0 0 0 rgba(229, 171, 74, 0);
+            }
+            20% {
+              background-color: rgba(229, 171, 74, 0.2);
+              transform: scale(1.03);
+              box-shadow: 0 0 25px 8px rgba(229, 171, 74, 0.4);
+            }
+            40% {
+              background-color: rgba(229, 171, 74, 0.25);
+              transform: scale(1.04);
+              box-shadow: 0 0 30px 10px rgba(229, 171, 74, 0.5);
+            }
+            60% {
+              background-color: rgba(229, 171, 74, 0.15);
+              transform: scale(1.02);
+              box-shadow: 0 0 20px 5px rgba(229, 171, 74, 0.3);
+            }
+            80% {
+              background-color: rgba(229, 171, 74, 0.08);
+              transform: scale(1.01);
+              box-shadow: 0 0 10px 2px rgba(229, 171, 74, 0.15);
+            }
+            100% {
+              background-color: rgba(15, 11, 10, 1);
+              transform: scale(1);
+              box-shadow: 0 0 0 0 rgba(229, 171, 74, 0);
+            }
+          }
+        `}</style>
         <div className="p-6">
           {!showCheckout ? (
             <>
@@ -57,7 +139,13 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   <p className="text-muted-foreground text-center py-8">Tu carrito está vacío</p>
                 ) : (
                   items.map((item) => (
-                    <div key={item.id} className="flex gap-3 p-3 bg-[#0F0B0A] rounded-lg">
+                    <div 
+                      key={item.id} 
+                      className="flex gap-3 p-3 bg-[#0F0B0A] rounded-lg transition-all duration-300"
+                      style={{
+                        animation: highlightedItem === item.id ? 'highlightItem 1.5s ease-out' : 'none'
+                      }}
+                    >
                       <div className="relative w-24 h-24 flex-shrink-0">
                         <Image
                           src={item.image || "/placeholder.svg"}
