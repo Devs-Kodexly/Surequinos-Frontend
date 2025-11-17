@@ -241,6 +241,19 @@ function ClientDetailModal({
     }
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "ACTIVE":
+        return "bg-green-500/10 text-green-500"
+      case "INACTIVE":
+        return "bg-yellow-500/10 text-yellow-500"
+      case "DELETED":
+        return "bg-red-500/10 text-red-500"
+      default:
+        return "bg-gray-500/10 text-gray-500"
+    }
+  }
+
   if (!client) return null
 
   return (
@@ -250,187 +263,230 @@ function ClientDetailModal({
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-[#1A1311] border border-[#2a2a2a] rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-[#1A1311] border-b border-[#2a2a2a] p-4 sm:p-6 flex items-center justify-between">
-            <h2 className="text-[#E5AB4A] font-serif text-xl sm:text-2xl font-bold">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-[#1A1311] border border-[#2a2a2a] rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+          {/* Header - Fixed */}
+          <div className="bg-[#1A1311] border-b border-[#2a2a2a] px-6 py-5 flex items-center justify-between flex-shrink-0">
+            <h2 className="text-[#E5AB4A] font-serif text-2xl font-bold">
               Detalles de Cliente: {client.name}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-colors p-1"
+              aria-label="Cerrar modal"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
 
-          <div className="p-4 sm:p-6 space-y-6">
-            {error && (
-              <div className="p-4 bg-red-900/20 border border-red-700 rounded-lg">
-                <p className="text-red-400 text-sm">{error}</p>
-              </div>
-            )}
-
-            {success && (
-              <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
-                <p className="text-green-400 text-sm">{success}</p>
-              </div>
-            )}
-
-            {/* Información General */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-white font-semibold mb-2">Información General</h3>
-                <div className="space-y-1 text-sm">
-                  <p className="text-gray-400"><span className="text-gray-500">Fecha de creación:</span> {formatDate(client.createdAt)}</p>
-                  <p className="text-gray-400"><span className="text-gray-500">Última actualización:</span> {formatDate(client.updatedAt)}</p>
-                  <p className="text-gray-400"><span className="text-gray-500">Estado:</span> {statusMap[client.status] || client.status}</p>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-white font-semibold mb-2">Estadísticas</h3>
-                <div className="space-y-1 text-sm">
-                  <p className="text-gray-400"><span className="text-gray-500">Total de pedidos:</span> {orders.length}</p>
-                  <p className="text-gray-400">
-                    <span className="text-gray-500">Total gastado:</span>{" "}
-                    {formatPrice(orders.reduce((sum, order) => sum + order.total, 0))}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Tabla de Pedidos */}
-            <div className="border-t border-[#2a2a2a] pt-4">
-              <h3 className="text-white font-semibold mb-4">Pedidos del Cliente</h3>
-              {loadingOrders ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400">Cargando pedidos...</p>
-                </div>
-              ) : orders.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400">Este cliente no tiene pedidos registrados</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-[#2a2a2a]">
-                        <th className="text-left py-3 px-4 text-gray-400 text-sm font-semibold">Número de Orden</th>
-                        <th className="text-left py-3 px-4 text-gray-400 text-sm font-semibold">Fecha</th>
-                        <th className="text-left py-3 px-4 text-gray-400 text-sm font-semibold">Estado</th>
-                        <th className="text-left py-3 px-4 text-gray-400 text-sm font-semibold">Estado de Pago</th>
-                        <th className="text-left py-3 px-4 text-gray-400 text-sm font-semibold">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((order) => (
-                        <tr key={order.id} className="border-b border-[#2a2a2a] hover:bg-[#0F0B0A] transition-colors">
-                          <td className="py-3 px-4 text-white text-sm">{order.orderNumber}</td>
-                          <td className="py-3 px-4 text-gray-400 text-sm">{formatDateShort(order.createdAt)}</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getOrderStatusColor(order.status)}`}>
-                              {orderStatusMap[order.status] || order.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-500/10 text-gray-400">
-                              {paymentStatusMap[order.paymentStatus] || order.paymentStatus}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-[#E5AB4A] text-sm font-semibold">{formatPrice(order.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+          {/* Content - Scrollable */}
+          <div className="overflow-y-auto flex-1 custom-scrollbar">
+            <div className="p-6 space-y-6">
+              {error && (
+                <div className="p-4 bg-red-900/20 border border-red-700 rounded-lg">
+                  <p className="text-red-400 text-sm">{error}</p>
                 </div>
               )}
-            </div>
 
-            {/* Formulario de Edición */}
-            <div className="border-t border-[#2a2a2a] pt-4">
-              <h3 className="text-white font-semibold mb-4">Editar Información del Cliente</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="edit-name" className="block text-white font-semibold mb-2">Nombre</label>
-                  <input
-                    id="edit-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#E5AB4A]"
-                  />
+              {success && (
+                <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
+                  <p className="text-green-400 text-sm">{success}</p>
+                </div>
+              )}
+
+              {/* Información General y Estadísticas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Información General Card */}
+                <div className="bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg p-5">
+                  <h3 className="text-[#E5AB4A] font-serif text-lg font-semibold mb-4">Información General</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-400 text-sm">Fecha de creación:</span>
+                      <span className="text-white text-sm font-medium text-right">{formatDate(client.createdAt)}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-400 text-sm">Última actualización:</span>
+                      <span className="text-white text-sm font-medium text-right">{formatDate(client.updatedAt)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Estado:</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
+                        {statusMap[client.status] || client.status}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label htmlFor="edit-email" className="block text-white font-semibold mb-2">Email</label>
-                  <input
-                    id="edit-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#E5AB4A]"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-phone" className="block text-white font-semibold mb-2">Teléfono</label>
-                  <input
-                    id="edit-phone"
-                    type="text"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#E5AB4A]"
-                    placeholder="Opcional"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-document" className="block text-white font-semibold mb-2">Número de Documento</label>
-                  <input
-                    id="edit-document"
-                    type="text"
-                    value={documentNumber}
-                    onChange={(e) => setDocumentNumber(e.target.value)}
-                    className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#E5AB4A]"
-                    placeholder="Opcional"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label htmlFor="edit-password" className="block text-white font-semibold mb-2">Nueva Contraseña (opcional)</label>
-                  <input
-                    id="edit-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#E5AB4A]"
-                    placeholder="Dejar vacío para mantener la contraseña actual"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Si deja este campo vacío, se mantendrá la contraseña actual del cliente.</p>
+                {/* Estadísticas Card */}
+                <div className="bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg p-5">
+                  <h3 className="text-[#E5AB4A] font-serif text-lg font-semibold mb-4">Estadísticas</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Total de pedidos:</span>
+                      <span className="text-white text-sm font-medium">{orders.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Total gastado:</span>
+                      <span className="text-[#E5AB4A] text-sm font-semibold">
+                        {formatPrice(orders.reduce((sum, order) => sum + order.total, 0))}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={handleUpdate}
-                  disabled={isUpdating}
-                  className="px-4 py-2 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white rounded-lg text-sm disabled:opacity-50 flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {isUpdating ? "Actualizando..." : "Guardar Cambios"}
-                </button>
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-gray-300 hover:bg-[#2a2a2a] rounded-lg text-sm"
-                >
-                  Cancelar
-                </button>
+              {/* Pedidos del Cliente */}
+              <div className="bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg p-5">
+                <h3 className="text-[#E5AB4A] font-serif text-lg font-semibold mb-4">Pedidos del Cliente</h3>
+                {loadingOrders ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400 text-sm">Cargando pedidos...</p>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400 text-sm">Este cliente no tiene pedidos registrados</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto -mx-5 px-5">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-[#2a2a2a]">
+                          <th className="text-left py-3 px-3 text-gray-400 text-sm font-semibold">Número de Orden</th>
+                          <th className="text-left py-3 px-3 text-gray-400 text-sm font-semibold">Fecha</th>
+                          <th className="text-left py-3 px-3 text-gray-400 text-sm font-semibold">Estado</th>
+                          <th className="text-left py-3 px-3 text-gray-400 text-sm font-semibold">Estado de Pago</th>
+                          <th className="text-right py-3 px-3 text-gray-400 text-sm font-semibold">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.map((order) => (
+                          <tr key={order.id} className="border-b border-[#2a2a2a]/50 hover:bg-[#1A1311] transition-colors">
+                            <td className="py-3 px-3 text-white text-sm">{order.orderNumber}</td>
+                            <td className="py-3 px-3 text-gray-400 text-sm">{formatDateShort(order.createdAt)}</td>
+                            <td className="py-3 px-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getOrderStatusColor(order.status)}`}>
+                                {orderStatusMap[order.status] || order.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-500/10 text-gray-400">
+                                {paymentStatusMap[order.paymentStatus] || order.paymentStatus}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-[#E5AB4A] text-sm font-semibold text-right">{formatPrice(order.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Formulario de Edición */}
+              <div className="bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg p-5">
+                <h3 className="text-[#E5AB4A] font-serif text-lg font-semibold mb-4">Editar Información del Cliente</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="edit-name" className="block text-white text-sm font-medium mb-2">Nombre</label>
+                    <input
+                      id="edit-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#E5AB4A] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-email" className="block text-white text-sm font-medium mb-2">Email</label>
+                    <input
+                      id="edit-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#E5AB4A] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-phone" className="block text-white text-sm font-medium mb-2">Teléfono</label>
+                    <input
+                      id="edit-phone"
+                      type="text"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#E5AB4A] transition-colors"
+                      placeholder="Opcional"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-document" className="block text-white text-sm font-medium mb-2">Número de Documento</label>
+                    <input
+                      id="edit-document"
+                      type="text"
+                      value={documentNumber}
+                      onChange={(e) => setDocumentNumber(e.target.value)}
+                      className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#E5AB4A] transition-colors"
+                      placeholder="Opcional"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label htmlFor="edit-password" className="block text-white text-sm font-medium mb-2">Nueva Contraseña (opcional)</label>
+                    <input
+                      id="edit-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#E5AB4A] transition-colors"
+                      placeholder="Dejar vacío para mantener la contraseña actual"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">Si deja este campo vacío, se mantendrá la contraseña actual del cliente.</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={handleUpdate}
+                    disabled={isUpdating}
+                    className="px-5 py-2.5 bg-[#AA3E11] hover:bg-[#AA3E11]/90 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                  >
+                    <Save className="w-4 h-4" />
+                    {isUpdating ? "Actualizando..." : "Guardar Cambios"}
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-5 py-2.5 bg-transparent border border-[#2a2a2a] text-gray-300 hover:bg-[#2a2a2a] hover:text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #0F0B0A;
+          border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #2a2a2a;
+          border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #E5AB4A;
+        }
+      `}</style>
     </>
   )
 }
@@ -575,11 +631,11 @@ export default function ClientesPage() {
         <p className="text-gray-400 text-sm sm:text-base">Administra los clientes del sistema</p>
       </div>
 
-      <div className="bg-[#1A1311] border border-[#2a2a2a] rounded-lg p-4 sm:p-6">
-        <div className="space-y-4 mb-4 sm:mb-6">
-          {/* Búsqueda */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+      <div className="bg-[#1A1311] border border-[#2a2a2a] rounded-lg p-6">
+        {/* Búsqueda */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Buscar por nombre, email, documento o teléfono..."
@@ -588,38 +644,46 @@ export default function ClientesPage() {
                 setSearchTerm(e.target.value)
                 setCurrentPage(0)
               }}
-              className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#E5AB4A] text-sm sm:text-base"
+              className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#E5AB4A] transition-colors text-sm"
             />
           </div>
+        </div>
 
-          {/* Filtros */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        {/* Filtros */}
+        <div className="bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg p-5 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="w-5 h-5 text-[#E5AB4A]" />
+            <h3 className="text-white font-medium text-sm">Filtros</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Filtro por Estado */}
             <div>
-              <label htmlFor="filter-status" className="block text-xs text-gray-400 mb-1">Estado</label>
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
-                <select
-                  id="filter-status"
-                  value={filterStatus}
-                  onChange={(e) => {
-                    setFilterStatus(e.target.value)
-                    setCurrentPage(0)
-                  }}
-                  className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:border-[#E5AB4A] text-sm sm:text-base"
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <label htmlFor="filter-status" className="block text-gray-400 text-sm font-medium mb-2">
+                Estado
+              </label>
+              <select
+                id="filter-status"
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value)
+                  setCurrentPage(0)
+                }}
+                className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#E5AB4A] transition-colors text-sm"
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Filtro por Fecha Inicio */}
             <div>
-              <label htmlFor="start-date" className="block text-xs text-gray-400 mb-1">Fecha Inicio</label>
+              <label htmlFor="start-date" className="block text-gray-400 text-sm font-medium mb-2">
+                Fecha Inicio
+              </label>
               <input
                 id="start-date"
                 type="date"
@@ -628,14 +692,16 @@ export default function ClientesPage() {
                   setStartDate(e.target.value)
                   setCurrentPage(0)
                 }}
-                className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:border-[#E5AB4A] text-sm sm:text-base [color-scheme:dark]"
+                className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#E5AB4A] transition-colors text-sm [color-scheme:dark]"
                 style={{ colorScheme: 'dark' }}
               />
             </div>
 
             {/* Filtro por Fecha Fin */}
             <div>
-              <label htmlFor="end-date" className="block text-xs text-gray-400 mb-1">Fecha Fin</label>
+              <label htmlFor="end-date" className="block text-gray-400 text-sm font-medium mb-2">
+                Fecha Fin
+              </label>
               <input
                 id="end-date"
                 type="date"
@@ -645,22 +711,22 @@ export default function ClientesPage() {
                   setCurrentPage(0)
                 }}
                 min={startDate || undefined}
-                className="w-full bg-[#0F0B0A] border border-[#2a2a2a] rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:border-[#E5AB4A] text-sm sm:text-base [color-scheme:dark]"
+                className="w-full bg-[#1A1311] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#E5AB4A] transition-colors text-sm [color-scheme:dark]"
                 style={{ colorScheme: 'dark' }}
               />
             </div>
           </div>
 
-          {/* Botón para limpiar filtros de fecha */}
+          {/* Botón para limpiar filtros */}
           {(startDate || endDate) && (
-            <div className="flex justify-end">
+            <div className="mt-4 flex justify-end">
               <button
                 onClick={() => {
                   setStartDate("")
                   setEndDate("")
                   setCurrentPage(0)
                 }}
-                className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-gray-400 hover:bg-[#2a2a2a] hover:text-white rounded-lg text-sm transition-colors"
+                className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-gray-400 hover:bg-[#2a2a2a] hover:text-white hover:border-[#E5AB4A] rounded-lg text-sm font-medium transition-colors"
               >
                 Limpiar fechas
               </button>

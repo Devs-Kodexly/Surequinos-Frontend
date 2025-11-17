@@ -160,7 +160,13 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                         <p className="text-[#E5AB4A] font-semibold mb-2" style={{ fontFamily: 'Inter', fontSize: '15px', lineHeight: '100%' }}>{formatPrice(item.price)}</p>
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={async () => {
+                              try {
+                                await updateQuantity(item.id, item.quantity - 1)
+                              } catch (error) {
+                                console.error("Error al actualizar cantidad:", error)
+                              }
+                            }}
                             className="w-7 h-7 rounded bg-[#1A1311] flex items-center justify-center text-white hover:bg-[#2a2a2a]"
                           >
                             <Minus className="w-3 h-3" />
@@ -172,14 +178,29 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                             className="w-10 text-center bg-[#0F0B0A] border border-[#2a2a2a] rounded text-white py-1 text-sm"
                           />
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={async () => {
+                              try {
+                                await updateQuantity(item.id, item.quantity + 1)
+                              } catch (error) {
+                                console.error("Error al actualizar cantidad:", error)
+                              }
+                            }}
                             className="w-7 h-7 rounded bg-[#1A1311] flex items-center justify-center text-white hover:bg-[#2a2a2a]"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
-                      <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-white self-start">
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await removeItem(item.id)
+                          } catch (error) {
+                            console.error("Error al eliminar item:", error)
+                          }
+                        }} 
+                        className="text-muted-foreground hover:text-white self-start"
+                      >
                         <X className="w-4 h-4" />
                       </button>
                     </div>

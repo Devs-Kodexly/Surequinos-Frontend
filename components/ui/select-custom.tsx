@@ -4,7 +4,7 @@ interface SelectCustomProps {
   name: string
   value: string
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
-  options: { value: string; label: string }[]
+  options: { value: string; label: string; disabled?: boolean }[]
   className?: string
 }
 
@@ -19,7 +19,12 @@ export function SelectCustom({ name, value, onChange, options, className = "" }:
         style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '14px', lineHeight: '140%', color: '#757575' }}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option 
+            key={option.value} 
+            value={option.value}
+            disabled={option.disabled}
+            className={option.disabled ? 'text-gray-600' : ''}
+          >
             {option.label}
           </option>
         ))}

@@ -1,75 +1,109 @@
 "use client"
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { cartApi, type Cart, type CartItem as ApiCartItem } from "./cart-api"
 
 interface CartItem {
-  id: string // Mantener para compatibilidad, pero ahora será el variantId
-  variantId: string // ID de la variante del producto
+  id: string
+  variantId: string
   name: string
   color: string
-  size?: string // Talla de la variante
-  type?: string // Tipo de la variante
+  size?: string
   price: number
   quantity: number
   image: string
+  stock: number
 }
 
 interface CartContextType {
   items: CartItem[]
-  addItem: (item: Omit<CartItem, "quantity">, triggerAnimation?: boolean) => void
-  removeItem: (id: string) => void
-  updateQuantity: (id: string, quantity: number) => void
-  clearCart: () => void
+  addItem: (variantId: string, quantity?: number, triggerAnimation?: boolean) => Promise<void>
+  removeItem: (itemId: string) => Promise<void>
+  updateQuantity: (itemId: string, quantity: number) => Promise<void>
+  clearCart: () => Promise<void>
   total: number
   itemCount: number
+  loading: boolean
   openCart: () => void
   setOpenCart: (callback: () => void) => void
-  triggerCartAnimation: (item: Omit<CartItem, "quantity">, startX: number, startY: number) => void
+  triggerCartAnimation: (variantId: string, quantity: number, startX: number, startY: number) => Promise<void>
   animationItem: { id: string; image: string; startX: number; startY: number } | null
   clearAnimation: () => void
+  refreshCart: () => Promise<void>
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  const [loading, setLoading] = useState(false)
   const [openCartCallback, setOpenCartCallback] = useState<(() => void) | null>(null)
   const [animationItem, setAnimationItem] = useState<{ id: string; image: string; startX: number; startY: number } | null>(null)
 
-  const addItem = (item: Omit<CartItem, "quantity">, triggerAnimation: boolean = false) => {
-    setItems((prev) => {
-      // Usar variantId como identificador único para encontrar items duplicados
-      const itemId = item.variantId || item.id
-      const existing = prev.find((i) => (i.variantId || i.id) === itemId)
-      if (existing) {
-        return prev.map((i) => ((i.variantId || i.id) === itemId ? { ...i, quantity: i.quantity + 1 } : i))
-      }
-      return [...prev, { ...item, id: item.variantId || item.id, quantity: 1 }]
-    })
-    
-    // Si no se debe animar, abrir el carrito después de un pequeño delay
-    if (!triggerAnimation && openCartCallback) {
-      setTimeout(() => {
-        openCartCallback()
-      }, 100)
+  // Cargar carrito al montar el componente
+  useEffect(() => {
+    refreshCart()
+  }, [])
+
+  const refreshCart = async () => {
+    try {
+      setLoading(true)
+      const cart = await cartApi.getCart()
+      setItems(mapCartItems(cart))
+    } catch (error) {
+      console.error("Error al cargar el carrito:", error)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const triggerCartAnimation = (item: Omit<CartItem, "quantity">, startX: number, startY: number) => {
-    // Configurar la animación (para el resaltado del item)
-    setAnimationItem({
-      id: item.id,
-      image: item.image,
-      startX,
-      startY,
-    })
-    
-    // Añadir el item al carrito
-    addItem(item, true)
-    
-    // Abrir el carrito inmediatamente
-    if (openCartCallback) {
-      openCartCallback()
+  const addItem = async (variantId: string, quantity: number = 1, triggerAnimation: boolean = false) => {
+    try {
+      setLoading(true)
+      // Asegurar que variantId es un string
+      const variantIdString = typeof variantId === 'string' ? variantId : String(variantId)
+      console.log('addItem - variantId:', variantIdString, 'quantity:', quantity)
+      await cartApi.addItem({ variantId: variantIdString, quantity })
+      await refreshCart()
+
+      if (!triggerAnimation && openCartCallback) {
+        setTimeout(() => {
+          openCartCallback()
+        }, 100)
+      }
+    } catch (error) {
+      console.error("Error al agregar item:", error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const triggerCartAnimation = async (variantId: string, quantity: number, startX: number, startY: number) => {
+    try {
+      // Primero agregar al carrito
+      await addItem(variantId, quantity, true)
+
+      // Buscar el item agregado para la animación
+      const cart = await cartApi.getCart()
+      const addedItem = cart.items.find(item => item.variantId === variantId)
+
+      if (addedItem) {
+        setAnimationItem({
+          id: addedItem.id,
+          image: addedItem.variant.imageUrl || addedItem.product.images[0] || "",
+          startX,
+          startY,
+        })
+      }
+
+      // Abrir el carrito
+      if (openCartCallback) {
+        openCartCallback()
+      }
+    } catch (error) {
+      console.error("Error en animación del carrito:", error)
+      throw error
     }
   }
 
@@ -77,20 +111,48 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setAnimationItem(null)
   }
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => (i.variantId || i.id) !== id))
+  const removeItem = async (itemId: string) => {
+    try {
+      setLoading(true)
+      await cartApi.removeItem(itemId)
+      await refreshCart()
+    } catch (error) {
+      console.error("Error al eliminar item:", error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = async (itemId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeItem(id)
+      await removeItem(itemId)
       return
     }
-    setItems((prev) => prev.map((i) => ((i.variantId || i.id) === id ? { ...i, quantity } : i)))
+
+    try {
+      setLoading(true)
+      await cartApi.updateItem(itemId, { quantity })
+      await refreshCart()
+    } catch (error) {
+      console.error("Error al actualizar cantidad:", error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const clearCart = () => {
-    setItems([])
+  const clearCart = async () => {
+    try {
+      setLoading(true)
+      await cartApi.clearCart()
+      setItems([])
+    } catch (error) {
+      console.error("Error al vaciar carrito:", error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
   }
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
@@ -107,19 +169,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <CartContext.Provider value={{ 
-      items, 
-      addItem, 
-      removeItem, 
-      updateQuantity, 
-      clearCart, 
-      total, 
-      itemCount, 
-      openCart, 
+    <CartContext.Provider value={{
+      items,
+      addItem,
+      removeItem,
+      updateQuantity,
+      clearCart,
+      total,
+      itemCount,
+      loading,
+      openCart,
       setOpenCart,
       triggerCartAnimation,
       animationItem,
-      clearAnimation
+      clearAnimation,
+      refreshCart,
     }}>
       {children}
     </CartContext.Provider>
@@ -132,4 +196,22 @@ export function useCart() {
     throw new Error("useCart must be used within CartProvider")
   }
   return context
+}
+
+// Helper para mapear items de la API al formato del contexto
+function mapCartItems(cart: Cart): CartItem[] {
+  if (!cart || !cart.items || cart.items.length === 0) {
+    return []
+  }
+  return cart.items.map((item: ApiCartItem) => ({
+    id: item.id,
+    variantId: item.variantId,
+    name: item.product.name,
+    color: item.variant.color || "Sin especificar",
+    size: item.variant.size,
+    price: item.price,
+    quantity: item.quantity,
+    image: item.variant.imageUrl || item.product.images[0] || "",
+    stock: item.variant.stock,
+  }))
 }

@@ -68,8 +68,28 @@ export function ProductCard({
   const { addItem, triggerCartAnimation } = useCart()
   const { showToast } = useToast()
 
-  // Procesar imágenes del backend
+  // Procesar imágenes del backend (incluir imágenes de variantes)
   const productImages = cleanImageArray(image)
+  
+  // Todas las imágenes disponibles (producto + variantes)
+  const allImages = useMemo(() => {
+    const mainImages = [...productImages]
+    
+    // Agregar imágenes de variantes que tengan imageUrl
+    const variantImages = variants
+      ?.map(v => v.imageUrl)
+      .filter((url): url is string => !!url && url.trim() !== '')
+      .map(url => cleanImageUrl(url)) || []
+    
+    // Combinar evitando duplicados
+    variantImages.forEach(img => {
+      if (!mainImages.includes(img)) {
+        mainImages.push(img)
+      }
+    })
+    
+    return mainImages
+  }, [productImages, variants])
 
   const [selectedVariant, setSelectedVariant] = useState<any>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -82,17 +102,13 @@ export function ProductCard({
     : price
 
   // Determinar la imagen actual a mostrar
-  // Prioridad: 1) Imagen de variante seleccionada, 2) Imagen de portada del producto
+  // Prioridad: 1) Imagen de variante seleccionada, 2) Imagen del índice actual, 3) Primera imagen
   const currentImage = useMemo(() => {
     if (selectedVariant?.imageUrl) {
       return cleanImageUrl(selectedVariant.imageUrl)
     }
-    // Mostrar siempre la imagen de portada del producto cuando no hay variante seleccionada
-    return productImages[0] || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`
-  }, [selectedVariant, productImages, title])
-
-  // Todas las imágenes disponibles para navegación (solo imágenes del producto)
-  const allImages = productImages
+    return allImages[currentImageIndex] || allImages[0] || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`
+  }, [selectedVariant, allImages, currentImageIndex, title])
 
   // Estados para talla y color
   const [selectedSize, setSelectedSize] = useState<string>(preselectedSize || "")
@@ -266,26 +282,22 @@ export function ProductCard({
       return
     }
 
-    const itemToAdd = {
-      id: variantToAdd.id, // Usar el variantId como id para compatibilidad
-      variantId: variantToAdd.id, // ID de la variante
-      name: title,
-      price: currentPrice,
-      image: currentImage || `/productos/${title.toLowerCase().replace(/\s+/g, '-')}.jpg`,
-      color: variantToAdd?.color || selectedColor || "Sin especificar",
-      size: variantToAdd?.size,
-    }
-
     // Obtener la posición del botón para la animación
     const buttonRect = e.currentTarget.getBoundingClientRect()
     const startX = buttonRect.left + buttonRect.width / 2 - 40 // Centrar la imagen (40px = mitad del ancho de la imagen)
     const startY = buttonRect.top - 100 // Posición arriba del botón
 
-    // Activar la animación
-    triggerCartAnimation(itemToAdd, startX, startY)
-
-    // Mostrar notificación de éxito
-    showToast("Producto añadido correctamente", "success", 3000)
+    // Activar la animación con el variantId correcto
+    const variantId = String(variantToAdd.id)
+    triggerCartAnimation(variantId, 1, startX, startY)
+      .then(() => {
+        // Mostrar notificación de éxito
+        showToast("Producto añadido correctamente", "success", 3000)
+      })
+      .catch((error) => {
+        console.error("Error al agregar al carrito:", error)
+        showToast("Error al agregar al carrito", "error", 3000)
+      })
   }
 
   const handleVariantChange = (variant: any) => {
@@ -293,8 +305,12 @@ export function ProductCard({
   }
 
   const nextImage = () => {
-    if (allImages.length > 1 && !isTransitioning && !selectedVariant) {
+    if (allImages.length > 1 && !isTransitioning) {
       setIsTransitioning(true)
+      // Si hay variante seleccionada, limpiarla al cambiar de imagen manualmente
+      if (selectedVariant) {
+        setSelectedVariant(null)
+      }
       setTimeout(() => {
         setCurrentImageIndex((prev) => (prev + 1) % allImages.length)
         setTimeout(() => setIsTransitioning(false), 50)
@@ -303,8 +319,12 @@ export function ProductCard({
   }
 
   const prevImage = () => {
-    if (allImages.length > 1 && !isTransitioning && !selectedVariant) {
+    if (allImages.length > 1 && !isTransitioning) {
       setIsTransitioning(true)
+      // Si hay variante seleccionada, limpiarla al cambiar de imagen manualmente
+      if (selectedVariant) {
+        setSelectedVariant(null)
+      }
       setTimeout(() => {
         setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)
         setTimeout(() => setIsTransitioning(false), 50)

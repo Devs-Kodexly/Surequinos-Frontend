@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, use } from "react"
+import { useState, useMemo, use, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -34,7 +34,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [quantity, setQuantity] = useState(1)
   const [showSizeTable, setShowSizeTable] = useState(false)
 
-  // Función para obtener el color hex (puedes expandir esto)
+  // Función para obtener el color hex
   const getColorHex = (colorName: string): string => {
     const colorMap: Record<string, string> = {
       'Chocolate': '#8B4513',
@@ -45,22 +45,28 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       'Blanco': '#FFFFFF',
       'Rojo': '#DC2626',
       'Azul': '#2563EB',
-      'Verde': '#16A34A'
+      'Verde': '#16A34A',
+      'Amarillo': '#EAB308',
+      'Naranja': '#EA580C',
+      'Gris': '#6B7280',
+      'Marrón': '#92400E',
     }
     return colorMap[colorName] || '#6B7280'
   }
 
-  // Procesar datos del producto
+  // Procesar imágenes del producto (incluir imágenes de variantes)
   const productImages = useMemo(() => {
     if (!product) return []
+    
+    // Imágenes principales del producto
     const mainImages = cleanImageArray(product.images)
-
+    
     // Agregar imágenes de variantes que tengan imageUrl
     const variantImages = product.variants
       ?.map(v => v.imageUrl)
       .filter((url): url is string => !!url && url.trim() !== '')
       .map(url => url.trim()) || []
-
+    
     // Combinar imágenes principales con imágenes de variantes, evitando duplicados
     const allImages = [...mainImages]
     variantImages.forEach(img => {
@@ -68,25 +74,82 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         allImages.push(img)
       }
     })
-
+    
+    console.log('Product images:', allImages, 'Length:', allImages.length)
+    console.log('Main images:', mainImages.length, 'Variant images:', variantImages.length)
+    
     return allImages
   }, [product])
 
-  // Obtener colores únicos de las variantes
+  // Imagen actual a mostrar (prioridad: variante seleccionada > imagen de portada)
+  const currentDisplayImage = useMemo(() => {
+    if (selectedVariant?.imageUrl) {
+      return selectedVariant.imageUrl
+    }
+    return productImages[selectedImage] || productImages[0]
+  }, [selectedVariant, productImages, selectedImage])
+
+  // Obtener colores únicos disponibles (filtrados por talla si está seleccionada)
   const availableColors = useMemo(() => {
     if (!product?.variants) return []
-    const colors = [...new Set(product.variants.map(v => v.color).filter(Boolean))]
-    return colors.map(color => ({
-      name: color!,
-      value: getColorHex(color!)
+    
+    const uniqueColors = new Set<string>()
+    product.variants.forEach(variant => {
+      // Si hay talla seleccionada, solo mostrar colores de esa talla
+      if (selectedSize && variant.size !== selectedSize) {
+        return
+      }
+      if (variant.color) {
+        uniqueColors.add(variant.color)
+      }
+    })
+    
+    return Array.from(uniqueColors).map(color => ({
+      name: color,
+      value: getColorHex(color)
     }))
-  }, [product])
+  }, [product, selectedSize])
 
-  // Obtener tallas únicas de las variantes
+  // Verificar disponibilidad de cada color
+  const getColorAvailability = (colorName: string) => {
+    if (!product?.variants) return false
+    return product.variants.some(v => {
+      const sizeMatch = !selectedSize || v.size === selectedSize
+      return v.color === colorName && sizeMatch && v.available
+    })
+  }
+
+  // Obtener tallas únicas disponibles (filtradas por color si está seleccionado)
   const availableSizes = useMemo(() => {
     if (!product?.variants) return []
-    return [...new Set(product.variants.map(v => v.size).filter(Boolean))]
-  }, [product])
+    
+    const uniqueSizes = new Set<string>()
+    product.variants.forEach(variant => {
+      // Si hay color seleccionado, solo mostrar tallas de ese color
+      if (selectedVariant?.color && variant.color !== selectedVariant.color) {
+        return
+      }
+      if (variant.size) {
+        uniqueSizes.add(variant.size)
+      }
+    })
+    
+    return Array.from(uniqueSizes).sort((a, b) => {
+      // Ordenar numéricamente si son tallas con pulgadas
+      const numA = parseFloat(a.replace(/[^0-9.]/g, ''))
+      const numB = parseFloat(b.replace(/[^0-9.]/g, ''))
+      return numA - numB
+    })
+  }, [product, selectedVariant])
+
+  // Verificar disponibilidad de cada talla
+  const getSizeAvailability = (size: string) => {
+    if (!product?.variants) return false
+    return product.variants.some(v => {
+      const colorMatch = !selectedVariant?.color || v.color === selectedVariant.color
+      return v.size === size && colorMatch && v.available
+    })
+  }
 
   // Precio actual basado en variante seleccionada
   const currentPrice = useMemo(() => {
@@ -111,7 +174,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       .slice(0, 4) // Mostrar máximo 4 productos relacionados
   }, [product, allProducts])
 
-  const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleAddToCart = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!product) return
 
     if (!selectedSize && availableSizes.length > 0) {
@@ -126,37 +189,111 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
     const variantToAdd = selectedVariant || product.variants.find(v => v.available) || product.variants[0]
 
-    const itemToAdd = {
-      id: product.id,
-      name: product.name,
-      variantId: variantToAdd?.id || product.id, // Usar el ID de la variante o el del producto como fallback
-      price: currentPrice,
-      image: productImages[selectedImage] || productImages[0] || `/productos/${product.name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
-      color: variantToAdd?.color || availableColors[0]?.name || "Sin especificar",
+    if (!variantToAdd) {
+      showToast("No hay variantes disponibles", "error", 3000)
+      return
     }
 
-    // Obtener la posición del botón para la animación
-    const buttonRect = e.currentTarget.getBoundingClientRect()
-    const startX = buttonRect.left + buttonRect.width / 2 - 40
-    const startY = buttonRect.top - 100
+    try {
+      // Obtener la posición del botón para la animación
+      const buttonRect = e.currentTarget.getBoundingClientRect()
+      const startX = buttonRect.left + buttonRect.width / 2 - 40
+      const startY = buttonRect.top - 100
 
-    // Activar la animación
-    triggerCartAnimation(itemToAdd, startX, startY)
+      // Debug: Ver qué tipo de dato es variantToAdd.id
+      console.log('variantToAdd:', variantToAdd)
+      console.log('variantToAdd.id tipo:', typeof variantToAdd.id, 'valor:', variantToAdd.id)
 
-    showToast("Producto añadido al carrito", "success", 3000)
+      // Asegurar que el ID es un string válido
+      let variantId: string
+      if (typeof variantToAdd.id === 'string') {
+        variantId = variantToAdd.id
+      } else if (typeof variantToAdd.id === 'object' && variantToAdd.id !== null) {
+        // Si es un objeto, intentar obtener el valor correcto
+        variantId = (variantToAdd.id as any).toString()
+      } else {
+        variantId = String(variantToAdd.id)
+      }
+
+      console.log('Agregando al carrito - variantId final:', variantId, 'quantity:', quantity)
+
+      // Activar la animación y agregar al carrito
+      await triggerCartAnimation(variantId, quantity, startX, startY)
+
+      showToast("Producto añadido al carrito", "success", 3000)
+    } catch (error) {
+      console.error("Error al agregar al carrito:", error)
+      showToast("Error al agregar al carrito", "error", 3000)
+    }
   }
 
   const incrementQuantity = () => setQuantity(q => Math.min(q + 1, availableStock))
   const decrementQuantity = () => setQuantity(q => Math.max(q - 1, 1))
 
-  const handleVariantChange = (color: string, size?: string) => {
+  const handleColorChange = (colorName: string) => {
+    // Buscar variante que coincida con el color y la talla seleccionada (si hay)
     const variant = product?.variants.find(v => {
-      const colorMatch = v.color === color
-      const sizeMatch = !size || size === '' || v.size === size
-      return colorMatch && sizeMatch
+      const colorMatch = v.color === colorName
+      const sizeMatch = !selectedSize || v.size === selectedSize
+      return colorMatch && sizeMatch && v.available
     })
+    
     setSelectedVariant(variant || null)
+    
+    // Si encontramos una variante con imagen, mostrarla
+    if (variant?.imageUrl) {
+      // Buscar el índice de la imagen en productImages si existe
+      const imageIndex = productImages.findIndex(img => img === variant.imageUrl)
+      if (imageIndex !== -1) {
+        setSelectedImage(imageIndex)
+      }
+    }
   }
+
+  const handleSizeChange = (size: string) => {
+    setSelectedSize(size)
+    
+    // Buscar variante que coincida con la talla y el color seleccionado (si hay)
+    const variant = product?.variants.find(v => {
+      const sizeMatch = v.size === size
+      const colorMatch = !selectedVariant?.color || v.color === selectedVariant.color
+      return sizeMatch && colorMatch && v.available
+    })
+    
+    if (variant) {
+      setSelectedVariant(variant)
+      
+      // Si la variante tiene imagen, mostrarla
+      if (variant.imageUrl) {
+        const imageIndex = productImages.findIndex(img => img === variant.imageUrl)
+        if (imageIndex !== -1) {
+          setSelectedImage(imageIndex)
+        }
+      }
+    }
+  }
+
+  // Efecto para actualizar la variante cuando cambian las selecciones
+  useEffect(() => {
+    if (!product?.variants) return
+
+    // Si no hay selecciones, limpiar variante
+    if (!selectedVariant?.color && !selectedSize) {
+      setSelectedVariant(null)
+      return
+    }
+
+    // Buscar variante que coincida con las selecciones actuales
+    const matchingVariant = product.variants.find(v => {
+      const colorMatch = !selectedVariant?.color || v.color === selectedVariant.color
+      const sizeMatch = !selectedSize || v.size === selectedSize
+      return colorMatch && sizeMatch && v.available
+    })
+
+    if (matchingVariant && matchingVariant.id !== selectedVariant?.id) {
+      setSelectedVariant(matchingVariant)
+    }
+  }, [selectedVariant?.color, selectedSize, product])
 
   // Loading state
   if (loading) {
@@ -214,9 +351,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           <div className="space-y-4">
             {/* Main Image */}
             <div className="aspect-square bg-[#1B1715] rounded-lg overflow-hidden">
-              {productImages.length > 0 ? (
+              {currentDisplayImage ? (
                 <OptimizedImage
-                  src={productImages[selectedImage]}
+                  src={currentDisplayImage}
                   alt={product.name}
                   fallbackSrc={`/productos/${product.name.toLowerCase().replace(/\s+/g, '-')}.jpg`}
                   fill
@@ -230,12 +367,18 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </div>
 
             {/* Thumbnails */}
-            {productImages.length > 1 && (
+            {productImages.length > 0 && (
               <div className="grid grid-cols-4 gap-3">
                 {productImages.map((img, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setSelectedImage(idx)}
+                    onClick={() => {
+                      setSelectedImage(idx)
+                      // Si hay una variante seleccionada y cambiamos de imagen manualmente, limpiar la variante
+                      if (selectedVariant?.imageUrl && selectedVariant.imageUrl !== img) {
+                        setSelectedVariant(null)
+                      }
+                    }}
                     className={`aspect-square bg-[#1B1715] rounded-lg overflow-hidden border-2 transition-colors ${selectedImage === idx ? "border-[#E5AB4A]" : "border-transparent hover:border-gray-700"
                       }`}
                   >
@@ -290,25 +433,37 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               {availableColors.length > 0 && (
                 <div className="mb-6">
                   <label className="mb-4 block" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                    Color de montura
+                    <span className="text-[#C9B8A5]">Color de montura:</span>
+                    {selectedVariant?.color && <span className="text-white ml-1">{selectedVariant.color}</span>}
                   </label>
                   <div className="flex gap-2 mb-3">
-                    {availableColors.map((color, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          handleVariantChange(color.name, selectedSize)
-                        }}
-                        className={`w-10 h-10 rounded-full border-2 transition-all ${selectedVariant?.color === color.name ? "border-[#E5AB4A] scale-105" : "border-gray-700"
+                    {availableColors.map((color, idx) => {
+                      const isAvailable = getColorAvailability(color.name)
+                      const isSelected = selectedVariant?.color === color.name
+                      
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            if (isAvailable) {
+                              handleColorChange(color.name)
+                            }
+                          }}
+                          disabled={!isAvailable}
+                          className={`w-8 h-8 rounded-full transition-all duration-200 border-2 ${
+                            isSelected
+                              ? 'ring-2 ring-[#E5AB4A] ring-offset-2 ring-offset-[#1B1715] border-white scale-105'
+                              : isAvailable 
+                                ? 'hover:scale-105 border-gray-600 hover:border-white' 
+                                : 'opacity-30 cursor-not-allowed border-gray-700'
                           }`}
-                        style={{ backgroundColor: color.value }}
-                        title={color.name}
-                      />
-                    ))}
+                          style={{ backgroundColor: color.value }}
+                          title={`${color.name}${!isAvailable ? ' (Agotado)' : ''}`}
+                          aria-label={`Color ${color.name}`}
+                        />
+                      )
+                    })}
                   </div>
-                  <p style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                    Color: {selectedVariant?.color || availableColors[0]?.name || "Sin especificar"}
-                  </p>
                 </div>
               )}
 
@@ -329,16 +484,22 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     name="size"
                     value={selectedSize}
                     onChange={(e) => {
-                      setSelectedSize(e.target.value)
-                      handleVariantChange(selectedVariant?.color || availableColors[0]?.name || '', e.target.value)
+                      handleSizeChange(e.target.value)
                     }}
                     options={[
                       { value: "", label: "Seleccionar talla" },
-                      ...availableSizes.map(size => ({ value: size || "", label: size || "" }))
+                      ...availableSizes.map(size => {
+                        const isAvailable = getSizeAvailability(size || "")
+                        return {
+                          value: size || "",
+                          label: `${size || ""}${!isAvailable ? ' (Agotado)' : ''}`,
+                          disabled: !isAvailable
+                        }
+                      })
                     ]}
                   />
                   <p className="mt-2" style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                    Selecciona una talla para ver el rango recomendable.
+                    {selectedSize ? `Talla seleccionada: ${selectedSize}` : 'Selecciona una talla para ver el rango recomendable.'}
                   </p>
                 </div>
               )}
@@ -396,13 +557,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <div className="space-y-1">
                 <p style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
                   {selectedVariant?.sku && `SKU: ${selectedVariant.sku} • `}
-                  Stock: {availableStock} unidades • Hecho a mano en Colombia
+                  Hecho a mano en Colombia
                 </p>
-                {product.variants.length > 1 && (
-                  <p style={{ fontFamily: 'Inter', fontWeight: 400, fontSize: '11.8px', lineHeight: '100%', color: '#C9B8A5' }}>
-                    {product.variants.length} variantes disponibles
-                  </p>
-                )}
               </div>
             </div>
 
