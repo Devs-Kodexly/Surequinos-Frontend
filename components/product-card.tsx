@@ -73,20 +73,19 @@ export function ProductCard({
   
   // Todas las imágenes disponibles (producto + variantes)
   const allImages = useMemo(() => {
-    const mainImages = [...productImages]
+    const mainImages: string[] = [...productImages]
     
     // Agregar imágenes de variantes que tengan imageUrl
-    const variantImages = variants
-      ?.map(v => v.imageUrl)
-      .filter((url): url is string => !!url && url.trim() !== '')
-      .map(url => cleanImageUrl(url)) || []
-    
-    // Combinar evitando duplicados
-    variantImages.forEach(img => {
-      if (!mainImages.includes(img)) {
-        mainImages.push(img)
-      }
-    })
+    if (variants) {
+      variants.forEach(v => {
+        if (v.imageUrl && v.imageUrl.trim() !== '') {
+          const cleanedUrl = cleanImageUrl(v.imageUrl)
+          if (cleanedUrl && !mainImages.includes(cleanedUrl)) {
+            mainImages.push(cleanedUrl)
+          }
+        }
+      })
+    }
     
     return mainImages
   }, [productImages, variants])

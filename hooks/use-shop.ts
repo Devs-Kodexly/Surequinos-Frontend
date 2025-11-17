@@ -62,8 +62,7 @@ export function useShop() {
         product.variants.some(variant =>
           variant.sku.toLowerCase().includes(term) ||
           variant.color?.toLowerCase().includes(term) ||
-          variant.size?.toLowerCase().includes(term) ||
-          variant.type?.toLowerCase().includes(term)
+          variant.size?.toLowerCase().includes(term)
         )
       )
     }
